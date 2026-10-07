@@ -11,7 +11,13 @@ namespace TurismoConecta.api.Services
     public class NegocioService : INegocioService
     {
         private readonly AppDbContext _context;
-        public NegocioService(AppDbContext context) => _context = context;
+        private readonly INotificacionService _notificaciones;
+
+        public NegocioService(AppDbContext context, INotificacionService notificaciones)
+        {
+            _context = context;
+            _notificaciones = notificaciones;
+        }
 
         public async Task<NegocioDto> CrearAsync(int idUsuario, NegocioCrearDto dto)
         {
@@ -88,6 +94,20 @@ namespace TurismoConecta.api.Services
             if (nuevoEstado == EstadosNegocio.Aprobado) negocio.FechaAprobacion = DateTime.Now;
 
             await _context.SaveChangesAsync();
+
+            // HU-31: avisar al dueño del negocio (en vivo + historial)
+            if (negocio.IdUsuario.HasValue)
+            {
+                var fueAprobado = nuevoEstado == EstadosNegocio.Aprobado;
+
+                await _notificaciones.EnviarAsync(
+                    negocio.IdUsuario.Value,
+                    fueAprobado ? CodigosNotificacion.NegocioAprobado : CodigosNotificacion.NegocioRechazado,
+                    fueAprobado
+                        ? $"¡Tu establecimiento «{negocio.Nombre}» fue aprobado! Ya es visible para los turistas."
+                        : $"Tu establecimiento «{negocio.Nombre}» no fue aprobado. Revisa sus datos y vuelve a enviarlo.");
+            }
+
             return (true, null);
         }
 
