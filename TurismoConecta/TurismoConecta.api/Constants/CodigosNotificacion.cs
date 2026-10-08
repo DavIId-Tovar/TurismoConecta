@@ -12,5 +12,7 @@ namespace TurismoConecta.api.Constants
         // HU-31 (creados en la Fase 1)
         public const string NegocioAprobado = "NEGOCIO_APROBADO";
         public const string NegocioRechazado = "NEGOCIO_RECHAZADO";
+        public const string NegocioPendiente = "NEGOCIO_PENDIENTE";
+
     }
 }

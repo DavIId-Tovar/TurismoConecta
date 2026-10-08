@@ -46,6 +46,11 @@ namespace TurismoConecta.api.Services
             _context.Negocios.Add(negocio);
             await _context.SaveChangesAsync();
 
+            // Avisar a los administradores del municipio que hay algo por revisar
+            await NotificarRevisoresAsync(
+                negocio.IdMunicipio,
+                $"Nuevo establecimiento por revisar: «{negocio.Nombre}».");
+
             return await ObtenerFichaAsync(negocio.IdNegocio) ?? throw new InvalidOperationException("Error al crear el negocio.");
         }
 
@@ -71,6 +76,15 @@ namespace TurismoConecta.api.Services
             if (cambioSustancial) negocio.Estado = EstadosNegocio.Pendiente;
 
             await _context.SaveChangesAsync();
+
+            // HU-23: un cambio de nombre o categoría vuelve a revisión → avisar al municipio
+            if (cambioSustancial)
+            {
+                await NotificarRevisoresAsync(
+                    negocio.IdMunicipio,
+                    $"«{negocio.Nombre}» cambió su nombre o categoría y necesita una nueva revisión.");
+            }
+
             return (true, null);
         }
 
@@ -109,6 +123,25 @@ namespace TurismoConecta.api.Services
             }
 
             return (true, null);
+        }
+
+        /// <summary>
+        /// Envía la notificación NEGOCIO_PENDIENTE a todos los AdminMunicipio
+        /// activos asignados a ese municipio.
+        /// </summary>
+        private async Task NotificarRevisoresAsync(int idMunicipio, string mensaje)
+        {
+            var idsRevisores = await _context.Usuarios
+                .Where(u => u.Activo
+                         && u.MunicipioAsignadoId == idMunicipio
+                         && u.IdRolNavigation.Nombre == Roles.AdminMunicipio)
+                .Select(u => u.IdUsuario)
+                .ToListAsync();
+
+            foreach (var idRevisor in idsRevisores)
+            {
+                await _notificaciones.EnviarAsync(idRevisor, CodigosNotificacion.NegocioPendiente, mensaje);
+            }
         }
 
         public async Task<List<NegocioDto>> ListarPorMunicipioAsync(int idMunicipio, int? idCategoria)

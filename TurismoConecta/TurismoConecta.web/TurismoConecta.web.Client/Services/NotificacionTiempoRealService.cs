@@ -24,6 +24,9 @@ namespace TurismoConecta.web.Client.Services
         /// <summary>Se dispara cuando llega algo nuevo o cambia la conexión.</summary>
         public event Action? Cambio;
 
+        /// <summary>Se dispara con CADA notificación que llega en vivo. Las páginas la usan para recargar sus datos.</summary>
+        public event Action<NotificacionDto>? NotificacionRecibida;
+
         public NotificacionTiempoRealService(NotificacionApiService api, ApiConfig config, IJSRuntime js)
         {
             _api = api;
@@ -59,6 +62,7 @@ namespace TurismoConecta.web.Client.Services
                 {
                     Notificaciones.Insert(0, nueva);
                     AvisarCambio();
+                    NotificacionRecibida?.Invoke(nueva);
                 });
 
                 _conexion.Reconnecting += _ => { AvisarCambio(); return Task.CompletedTask; };

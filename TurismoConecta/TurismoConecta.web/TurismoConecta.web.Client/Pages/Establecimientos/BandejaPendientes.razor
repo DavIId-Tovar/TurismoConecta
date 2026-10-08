@@ -1,7 +1,9 @@
 @page "/establecimientos/pendientes"
 @layout EmptyLayout
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@implements IDisposable
 @inject NegocioApiService NegocioService
+@inject NotificacionTiempoRealService Notif
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -9,7 +11,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="Pages/Establecimientos/BandejaPendientes.razor.css" />
 </HeadContent>
 
 <AuthorizeView Roles="@Roles.GeneralOMunicipio">
@@ -17,18 +18,24 @@
         <div class="panel-comercio-wrap">
             <header class="panel-topbar">
                 <div class="topbar-container">
-                    <button class="btn-volver-inicio" @onclick="VolverDashboard">← Volver al Dashboard</button>
+                    @* ◆ CAMBIO: flecha de texto → ícono Phosphor *@
+                    <button class="btn-volver-inicio" @onclick="VolverDashboard">
+                        <i class="ph ph-arrow-left" aria-hidden="true"></i> Volver al Dashboard
+                    </button>
                     <div class="topbar-brand-center">
                         <a href="/admin/dashboard" class="logo-marco-dorado" title="TurismoConecta">
                             <img src="images/turismo-conecta-logo.png" alt="TurismoConecta" class="topbar-logo-img" />
                         </a>
                     </div>
-                    <div class="badge-admin-info">
-                        <img src="https://ui-avatars.com/api/?name=@Uri.EscapeDataString(authContext.User.Identity?.Name ?? "Gestor")&background=213b31&color=fff&size=80" alt="Foto" class="admin-avatar-topbar"
-                             onerror="this.onerror=null;this.style.display='none';" />
-                        <span class="admin-label-prefijo">Administrador:</span>
-                        <span class="admin-nombre-valor">@(authContext.User.Identity?.Name ?? "Gestor")</span>
-                        <span class="admin-rol-tag">@(authContext.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? authContext.User.FindFirst("role")?.Value ?? "Admin")</span>
+                    <div class="topbar-derecha">
+                        <CampanaNotificaciones />
+                        <div class="badge-admin-info">
+                            <img src="https://ui-avatars.com/api/?name=@Uri.EscapeDataString(authContext.User.Identity?.Name ?? "Gestor")&background=213b31&color=fff&size=80" alt="Foto" class="admin-avatar-topbar"
+                                 onerror="this.onerror=null;this.style.display='none';" />
+                            <span class="admin-label-prefijo">Administrador:</span>
+                            <span class="admin-nombre-valor">@(authContext.User.Identity?.Name ?? "Gestor")</span>
+                            <span class="admin-rol-tag">@(authContext.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? authContext.User.FindFirst("role")?.Value ?? "Admin")</span>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -50,7 +57,7 @@
                 {
                     <div class="caja-vacia-editorial">
                         <div class="icono-vacio">
-                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #2d6a4f; margin-bottom: 12px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #2d6a4f; margin-bottom: 12px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                         </div>
                         <h3>Al día. No hay solicitudes pendientes</h3>
                         <p>Todos los negocios registrados en tu municipio han sido revisados.</p>
@@ -60,7 +67,9 @@
                 {
                     <!-- Aviso general -->
                     <div class="resumen-pendientes">
-                        ⚠ <strong>@pendientes.Count</strong> establecimiento@(pendientes.Count == 1 ? "" : "s") por aprobar
+                        @* ◆ CAMBIO: ⚠ → ícono Phosphor *@
+                        <i class="ph-fill ph-warning" aria-hidden="true"></i>
+                        <strong>@pendientes.Count</strong> establecimiento@(pendientes.Count == 1 ? "" : "s") por aprobar
                         en <strong>@grupos.Count</strong> municipio@(grupos.Count == 1 ? "" : "s")
                     </div>
 
@@ -72,9 +81,10 @@
                             <button type="button"
                                     class="tarjeta-municipio @(estaAbierto ? "abierta" : "")"
                                     @onclick="() => AlternarMunicipio(grupo.Key)">
-                                <span class="tarjeta-nombre">📍 @grupo.Key</span>
+                                @* ◆ CAMBIO: 📍 y ▲/▼ → íconos Phosphor *@
+                                <span class="tarjeta-nombre"><i class="ph-fill ph-map-pin" aria-hidden="true"></i> @grupo.Key</span>
                                 <span class="tarjeta-contador">@grupo.Count() por aprobar</span>
-                                <span class="tarjeta-flecha">@(estaAbierto ? "▲" : "▼")</span>
+                                <span class="tarjeta-flecha"><i class="ph @(estaAbierto ? "ph-caret-up" : "ph-caret-down")" aria-hidden="true"></i></span>
                             </button>
                         }
                     </div>
@@ -106,13 +116,14 @@
                                             <td style="padding:1rem; color:#555;">@p.NombrePropietario</td>
                                             <td style="padding:1rem; color:#777; font-size:0.85rem;">@(p.FechaRegistro?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
                                             <td style="padding:1rem; text-align:right;">
+                                                @* ◆ CAMBIO: ✓ y ✕ → íconos Phosphor (la lógica es la misma) *@
                                                 <button style="background:#2d6a4f; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; margin-right:0.5rem;"
                                                         @onclick='() => ResolverEstado(p.IdNegocio, "Aprobado")'>
-                                                    ✓ Aprobar
+                                                    <i class="ph ph-check" aria-hidden="true"></i> Aprobar
                                                 </button>
                                                 <button style="background:#dc2626; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600;"
                                                         @onclick='() => ResolverEstado(p.IdNegocio, "Rechazado")'>
-                                                    ✕ Rechazar
+                                                    <i class="ph ph-x" aria-hidden="true"></i> Rechazar
                                                 </button>
                                             </td>
                                         </tr>
@@ -137,8 +148,12 @@
         <div class="toast-indicator"></div>
         <div class="toast-content">
             <div class="toast-header-flex">
-                <span class="toast-title">@(esError ? "Aviso del Sistema" : tituloAlerta ?? "Operación Exitosa")</span>
-                <button type="button" class="btn-cerrar-toast" @onclick="CerrarAlerta">✕</button>
+                @* ◆ CAMBIO: si viene un título, se usa también en los errores *@
+                <span class="toast-title">@(tituloAlerta ?? (esError ? "Aviso del Sistema" : "Operación Exitosa"))</span>
+                @* ◆ CAMBIO: ✕ de texto → ícono Phosphor + aria-label *@
+                <button type="button" class="btn-cerrar-toast" aria-label="Cerrar aviso" @onclick="CerrarAlerta">
+                    <i class="ph ph-x" aria-hidden="true"></i>
+                </button>
             </div>
             <p class="toast-desc">@mensajeAlerta</p>
         </div>
@@ -160,7 +175,24 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // ◆ CAMBIO: escuchar las notificaciones en tiempo real (SignalR)
+        Notif.NotificacionRecibida += AlRecibirNotificacion;
+
         await CargarPendientes();
+    }
+
+    // ◆ NUEVO: se ejecuta cada vez que el hub envía "NuevaNotificacion" a este usuario
+    private void AlRecibirNotificacion(NotificacionDto notificacion)
+    {
+        // Solo reaccionamos a "llegó un negocio nuevo por revisar"
+        if (notificacion.Codigo != CodigosNotificacion.NegocioPendiente) return;
+
+        // SignalR llama desde fuera del ciclo de Blazor → InvokeAsync para volver a él
+        _ = InvokeAsync(async () =>
+        {
+            await CargarPendientes();
+            MostrarToast(notificacion.Mensaje, error: false, titulo: "Nueva solicitud");
+        });
     }
 
     private async Task CargarPendientes()
@@ -246,5 +278,14 @@
             Nav.NavigateTo("/admin/dashboard");
         else
             Nav.NavigateTo("/municipio/dashboard");
+    }
+
+    // ◆ NUEVO: obligatorio por @implements IDisposable.
+    // Blazor lo llama al salir de la página: si no te desuscribes, el servicio (Scoped, vive toda la sesión)
+    // seguiría llamando a esta página "muerta" y recargaría pendientes en segundo plano.
+    public void Dispose()
+    {
+        Notif.NotificacionRecibida -= AlRecibirNotificacion;
+        _toastCts?.Cancel();
     }
 }

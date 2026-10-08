@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject NotificacionTiempoRealService Notif
+@inject NavigationManager Nav
 
 <div class="campana">
     <button type="button"
@@ -46,6 +47,7 @@
                         <li class="campana-item @(item.Leida ? "" : "no-leida")"
                             @key="item.IdNotificacion"
                             @onclick="() => Marcar(item)">
+                     
                             <span class="campana-item-icono @ClaseTipo(item.Codigo)" aria-hidden="true">
                                 <i class="@IconoTipo(item.Codigo)"></i>
                             </span>
@@ -84,28 +86,40 @@
 
     private void Cerrar() => abierta = false;
 
-    private Task Marcar(NotificacionDto notificacion) => Notif.MarcarLeidaAsync(notificacion);
+    private async Task Marcar(NotificacionDto notificacion)
+    {
+        await Notif.MarcarLeidaAsync(notificacion);
+
+        // Las de "por revisar" llevan directo a la bandeja
+        if (notificacion.Codigo == CodigosNotificacion.NegocioPendiente)
+        {
+            abierta = false;
+            Nav.NavigateTo("/establecimientos/pendientes");
+        }
+    }
 
     private Task MarcarTodas() => Notif.MarcarTodasLeidasAsync();
 
     // Ícono según el código de TiposNotificacion
     private static string IconoTipo(string codigo) => codigo switch
     {
-        "NEGOCIO_APROBADO" => "ph-fill ph-check-circle",
-        "NEGOCIO_RECHAZADO" => "ph-fill ph-x-circle",
-        "FAV_NUEVO" => "ph-fill ph-heart",
-        "PROMO_NEGOCIO" => "ph-fill ph-megaphone",
-        "INFO_GENERAL" => "ph-fill ph-info",
+        CodigosNotificacion.NegocioAprobado => "ph-fill ph-check-circle",
+        CodigosNotificacion.NegocioRechazado => "ph-fill ph-x-circle",
+        CodigosNotificacion.NegocioPendiente => "ph-fill ph-hourglass-medium",
+        CodigosNotificacion.FavoritoNuevo => "ph-fill ph-heart",
+        CodigosNotificacion.PromoNegocio => "ph-fill ph-megaphone",
+        CodigosNotificacion.InfoGeneral => "ph-fill ph-info",
         _ => "ph ph-bell"
     };
 
-    // Color de fondo del círculo según el tipo
+    
     private static string ClaseTipo(string codigo) => codigo switch
     {
-        "NEGOCIO_APROBADO" => "tipo-exito",
-        "NEGOCIO_RECHAZADO" => "tipo-error",
-        "FAV_NUEVO" => "tipo-favorito",
-        "PROMO_NEGOCIO" => "tipo-promo",
+        CodigosNotificacion.NegocioAprobado => "tipo-exito",
+        CodigosNotificacion.NegocioRechazado => "tipo-error",
+        CodigosNotificacion.NegocioPendiente => "tipo-promo",
+        CodigosNotificacion.FavoritoNuevo => "tipo-favorito",
+        CodigosNotificacion.PromoNegocio => "tipo-promo",
         _ => ""
     };
 
