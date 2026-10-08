@@ -42,6 +42,7 @@
                         </a>
                     </nav>
                     <div class="comercio-topbar-right">
+                        <CampanaNotificaciones />
                         <span class="badge-comercio">Comerciante</span>
                         <a href="/perfil" class="comercio-avatar-link">
                             @authContext.User.Identity?.Name?.Split(' ').FirstOrDefault() ?? "Mi Cuenta"
