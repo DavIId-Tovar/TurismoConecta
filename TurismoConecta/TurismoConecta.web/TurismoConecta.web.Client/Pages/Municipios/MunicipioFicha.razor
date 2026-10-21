@@ -377,11 +377,23 @@
 
             <div class="divisor-seccion"></div>
 
-            <!-- SECCIÓN 5: UBICACIÓN GEOGRÁFICA -->
+            <!-- SECCIÓN 5: OPINIONES DE VIAJEROS (HU-28) -->
+            <section class="bloque-contenido">
+                <div class="bloque-cabecera">
+                    <span class="bloque-indice">05</span>
+                    <h2 class="bloque-titulo">Opiniones de Viajeros</h2>
+                </div>
+
+                <ListaResenas IdMunicipio="ficha.IdMunicipio" NombreLugar="@ficha.Nombre" />
+            </section>
+
+            <div class="divisor-seccion"></div>
+
+            <!-- SECCIÓN 6: UBICACIÓN GEOGRÁFICA -->
             <section class="bloque-contenido">
                 <div class="bloque-cabecera-flex">
                     <div class="bloque-titulo-agrupado">
-                        <span class="bloque-indice">05</span>
+                        <span class="bloque-indice">06</span>
                         <h2 class="bloque-titulo">Ubicación Geográfica</h2>
                     </div>
                     @* ◆ ICONO: abrir fuera (antes ↗) *@
@@ -407,10 +419,10 @@
             {
                 <div class="divisor-seccion"></div>
 
-                <!-- SECCIÓN 6: HISTORIA Y MEMORIA -->
+                <!-- SECCIÓN 7: HISTORIA Y MEMORIA -->
                 <section class="bloque-contenido">
                     <div class="bloque-cabecera">
-                        <span class="bloque-indice">06</span>
+                        <span class="bloque-indice">07</span>
                         <h2 class="bloque-titulo">Historia y Memoria</h2>
                     </div>
                     <p class="parrafo-editorial">@ficha.Historia</p>
@@ -572,6 +584,12 @@
                                 }
                             </div>
                         }
+
+                        <!-- OPINIONES DEL ESTABLECIMIENTO (HU-28 / HU-29) -->
+                        <div class="modal-negocio-seccion">
+                            <span class="modal-subtitulo-label">Opiniones de visitantes</span>
+                            <ListaResenas IdNegocio="negocioModal.IdNegocio" NombreLugar="@negocioModal.Nombre" Compacta="true" />
+                        </div>
 
                         <!-- BOTONES DE ACCIÓN RÁPIDA: WHATSAPP Y LLAMADA -->
                         @* ◆ ICONOS: 💬 📞 🗺️ → Phosphor *@
