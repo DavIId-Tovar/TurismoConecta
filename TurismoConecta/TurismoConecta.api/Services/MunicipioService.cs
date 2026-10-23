@@ -104,6 +104,67 @@ namespace TurismoConecta.api.Services
                 .ToListAsync(ct);
         }
 
+        public async Task<ResultadoPaginado<MunicipioExplorarDto>> ExplorarAsync(
+    string? texto, List<int> idsEtiquetas, string? orden, int pagina, int tamano, CancellationToken ct = default)
+        {
+            pagina = Math.Max(1, pagina);
+            tamano = Math.Clamp(tamano, 1, 50);
+
+            var query = _context.Municipios.AsNoTracking().Where(m => m.Activo);
+
+            // Collate "..._CI_AI" = ignora mayúsculas y tildes en SQL Server: "gameza" encuentra "Gámeza"
+            if (!string.IsNullOrWhiteSpace(texto))
+            {
+                var textoLimpio = texto.Trim();
+                query = query.Where(m => EF.Functions.Collate(m.Nombre, "Modern_Spanish_CI_AI").Contains(textoLimpio));
+            }
+
+            // El municipio debe tener TODAS las etiquetas elegidas
+            foreach (var idEtiqueta in idsEtiquetas)
+                query = query.Where(m => m.MunicipioEtiqueta.Any(me => me.IdEtiqueta == idEtiqueta));
+
+            var total = await query.CountAsync(ct);
+
+            // Solo cuentan las reseñas visibles (Moderada = true); las retenidas por spam no suben ni bajan el promedio
+            query = orden switch
+            {
+                "calificacion" => query
+                    .OrderByDescending(m => m.Reseñas.Where(r => r.Moderada).Average(r => (double?)r.Calificacion) ?? 0)
+                    .ThenByDescending(m => m.Reseñas.Count(r => r.Moderada))
+                    .ThenBy(m => m.Nombre),
+                "resenas" => query
+                    .OrderByDescending(m => m.Reseñas.Count(r => r.Moderada))
+                    .ThenBy(m => m.Nombre),
+                _ => query.OrderBy(m => m.Nombre)
+            };
+
+            var items = await query
+                .Skip((pagina - 1) * tamano)
+                .Take(tamano)
+                .Select(m => new MunicipioExplorarDto
+                {
+                    IdMunicipio = m.IdMunicipio,
+                    Nombre = m.Nombre,
+                    ImagenUrl = m.ImagenUrl,
+                    Descripcion = m.Descripcion,
+                    Etiquetas = m.MunicipioEtiqueta.Select(me => me.IdEtiquetaNavigation.Nombre).Distinct().ToList(),
+                    PromedioCalificacion = m.Reseñas.Where(r => r.Moderada).Average(r => (double?)r.Calificacion),
+                    TotalResenas = m.Reseñas.Count(r => r.Moderada)
+                })
+                .ToListAsync(ct);
+
+            return new ResultadoPaginado<MunicipioExplorarDto>
+            {
+                Items = items,
+                Total = total,
+                Pagina = pagina,
+                Tamano = tamano
+            };
+        }
+
+
+
+
         public async Task<List<MunicipioListadoDto>> BuscarAsync(string? texto, int? idEtiqueta, CancellationToken ct = default)
         {
             var query = _context.Municipios.Where(m => m.Activo).AsQueryable();

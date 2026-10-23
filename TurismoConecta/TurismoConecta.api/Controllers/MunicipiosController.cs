@@ -36,6 +36,32 @@ namespace TurismoConecta.api.Controllers
         public async Task<IActionResult> Mapa(CancellationToken ct = default) =>
             Ok(await _municipioService.ListarParaMapaAsync(ct));
 
+
+        /// <summary>Catálogo público: filtra por texto y etiquetas, ordena y pagina en la BD.</summary>
+        [HttpGet("explorar")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ResultadoPaginado<MunicipioExplorarDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Explorar(
+            [FromQuery] string? texto,
+            [FromQuery] string? etiquetas,
+            [FromQuery] string? orden,
+            [FromQuery] int pagina = 1,
+            [FromQuery] int tamano = 12,
+            CancellationToken ct = default)
+        {
+            // "3,7" → [3, 7]. Lo que no sea un número se ignora en vez de reventar con un 500
+            var ids = (etiquetas ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => int.TryParse(s, out var id) ? id : 0)
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            return Ok(await _municipioService.ExplorarAsync(texto, ids, orden, pagina, tamano, ct));
+        }
+
+
+
         /// <summary>Ficha detallada de un municipio.</summary>
         [HttpGet("{id:int}")]
         [AllowAnonymous]

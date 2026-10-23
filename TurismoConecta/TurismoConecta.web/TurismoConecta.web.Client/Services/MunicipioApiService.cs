@@ -38,6 +38,32 @@ namespace TurismoConecta.web.Client.Services
             }
         }
 
+        /// <summary>Catálogo público con filtros, orden y paginación en el servidor (api/municipios/explorar).</summary>
+        public async Task<ResultadoPaginado<MunicipioExplorarDto>?> ExplorarAsync(
+            string? texto,
+            IEnumerable<int>? etiquetaIds,
+            string? orden,
+            int pagina = 1,
+            int tamano = 12,
+            CancellationToken ct = default)
+        {
+            var qs = new List<string> { $"pagina={pagina}", $"tamano={tamano}" };
+
+            if (!string.IsNullOrWhiteSpace(texto))
+                qs.Add($"texto={Uri.EscapeDataString(texto.Trim())}");
+
+            if (etiquetaIds is not null && etiquetaIds.Any())
+                qs.Add($"etiquetas={string.Join(",", etiquetaIds)}");
+
+            if (!string.IsNullOrWhiteSpace(orden))
+                qs.Add($"orden={orden}");
+
+            try { return await _http.GetFromJsonAsync<ResultadoPaginado<MunicipioExplorarDto>>($"api/municipios/explorar?{string.Join("&", qs)}", ct); }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
+
+
+
         public async Task<MunicipioFichaDto?> ObtenerFichaAsync(int id, CancellationToken ct = default)
         {
             try { return await _http.GetFromJsonAsync<MunicipioFichaDto>($"api/municipios/{id}", ct); }
@@ -176,6 +202,19 @@ namespace TurismoConecta.web.Client.Services
         public List<FechaRelevanteDto> FechasRelevantes { get; set; } = new();    
 
     }
+
+    // Respuesta de api/municipios/explorar (tarjetas del catálogo)
+    public class MunicipioExplorarDto
+    {
+        public int IdMunicipio { get; set; }
+        public string Nombre { get; set; } = "";
+        public string? ImagenUrl { get; set; }
+        public string? Descripcion { get; set; }
+        public List<string> Etiquetas { get; set; } = new();
+        public double? PromedioCalificacion { get; set; }
+        public int TotalResenas { get; set; }
+    }
+
 
     public class FechaRelevanteDto
     {

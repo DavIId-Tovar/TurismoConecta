@@ -667,3 +667,75 @@
 .btn-itinerario:hover .btn-itinerario-flecha {
     transform: translateX(3px) !important;
 }
+
+
+
+/* ==========================================================================
+   EXPLORADOR: barra de resultados, orden y calificación de las tarjetas
+   ========================================================================== */
+.catalogo-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.catalogo-conteo {
+    margin: 0;
+    font-weight: 600;
+    color: var(--tinta-suave);
+}
+
+.catalogo-orden {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--tinta-suave);
+}
+
+    .catalogo-orden select {
+        padding: 8px 12px;
+        border: 1px solid var(--piedra);
+        border-radius: 10px;
+        background: var(--blanco);
+        color: var(--tinta);
+        font: inherit;
+        cursor: pointer;
+    }
+
+        .catalogo-orden select:focus {
+            outline: 2px solid var(--teal);
+            outline-offset: 1px;
+        }
+
+.card-calificacion {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 20px;
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+}
+
+.calif-numero {
+    font-weight: 700;
+    color: var(--tinta);
+}
+
+.calif-total,
+.calif-sin {
+    color: var(--tinta-suave);
+}
+
+.calif-sin {
+    font-style: italic;
+}
+
+.sello-recomendado {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
