@@ -444,11 +444,9 @@
         </div>
     </Authorized>
     <NotAuthorized>
-        <div class="acceso-denegado-clean">
-            <h2>Acceso Restringido</h2>
-            <p>Se requieren privilegios de <strong>Superadministrador</strong> para acceder al Centro de Control.</p>
-            <button class="btn-primario-clean" @onclick='() => Nav.NavigateTo("/login")'>Iniciar Sesión</button>
-        </div>
+        <AccesoRestringido>
+            Se requieren privilegios de <strong>Superadministrador</strong> para acceder al Centro de Control.
+        </AccesoRestringido>
     </NotAuthorized>
 </AuthorizeView>
 
@@ -605,12 +603,11 @@
 
     private async Task CerrarSesion()
     {
-        await JS.InvokeVoidAsync("borrarToken");
         if (AuthStateProvider is JwtAuthStateProvider jwt)
-        {
-            jwt.NotificarCambioAutenticacion();
-        }
-        Nav.NavigateTo("/login", forceLoad: true);
+            await jwt.CerrarSesionAsync();
+
+        // replace: la página privada desaparece del historial → "Atrás" ya no vuelve a ella
+        Nav.NavigateTo("/login", forceLoad: true, replace: true);
     }
 
     public void Dispose()

@@ -16,10 +16,14 @@
         <div class="form-section">
             <div class="form-wrapper">
                 
-                <div class="brand">
+                <a href="/" class="volver-inicio">
+                    <i class="ph ph-arrow-left"></i> Volver al inicio
+                </a>
+
+                <a href="/" class="brand" title="Ir al inicio">
                     <i class="ph-fill ph-compass"></i>
                     <span>TurismoConecta</span>
-                </div>
+                </a>
 
                 <div class="header-text">
                     <h1>¡Bienvenido de Nuevo!</h1>
@@ -133,6 +137,27 @@
     private string mensajeError = string.Empty;
     private bool cargando = false;
 
+
+    // Si ya hay una sesión válida, no mostramos el formulario:
+    // lo mandamos directo a su panel según el rol.
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        var usuario = estado.User;
+
+        if (usuario.Identity?.IsAuthenticated != true) return;   // sin sesión → se muestra el login normal
+
+        var destino = usuario.IsInRole(Roles.AdminGeneral) ? "/admin/dashboard"
+                    : usuario.IsInRole(Roles.AdminMunicipio) ? "/municipio/dashboard"
+                    : usuario.IsInRole(Roles.AdminEstablecimiento) ? "/comercio/dashboard"
+                    : "/";                                       // turista → inicio
+
+        // replace: el /login no queda en el historial
+        NavManager.NavigateTo(destino, replace: true);
+    }
+
+
+
     private async Task HacerLogin()
     {
         mensajeError = string.Empty;
@@ -170,7 +195,7 @@
                         Roles.AdminEstablecimiento => "/comercio/dashboard",
                         _ => "/"   // Turista → portal principal
                     };
-                NavManager.NavigateTo(destino, forceLoad: true);
+                NavManager.NavigateTo(destino, forceLoad: true, replace: true);
 
 
             }
@@ -199,10 +224,6 @@
         && !url.StartsWith("/\\");
 
 
-
-}
-@code {
-   
     private bool mostrarClave = false;
     private string tipoInputClave = "password";
 
@@ -212,4 +233,7 @@
         tipoInputClave = mostrarClave ? "text" : "password";
     }
 
+
+
 }
+

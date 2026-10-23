@@ -145,11 +145,9 @@
         </div>
     </Authorized>
     <NotAuthorized>
-        <div class="sin-permisos-caja">
-            <h2>Acceso Restringido</h2>
-            <p>Debes iniciar sesión con una cuenta de <strong>Comerciante</strong> para acceder a este panel.</p>
-            <button class="btn-crear-nuevo" @onclick='() => Nav.NavigateTo("/login")'>Iniciar Sesión</button>
-        </div>
+        <AccesoRestringido>
+            Debes iniciar sesión con una cuenta de <strong>Comerciante</strong> para acceder a este panel.
+        </AccesoRestringido>
     </NotAuthorized>
 </AuthorizeView>
 

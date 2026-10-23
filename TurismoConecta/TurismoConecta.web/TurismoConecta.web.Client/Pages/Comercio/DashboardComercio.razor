@@ -247,11 +247,9 @@
         </div>
     </Authorized>
     <NotAuthorized>
-        <div class="sin-acceso-comercio">
-            <h2>Acceso Restringido</h2>
-            <p>Necesitas una cuenta de <strong>Comerciante</strong> para acceder.</p>
-            <button @onclick='() => Nav.NavigateTo("/login")'>Iniciar Sesión</button>
-        </div>
+        <AccesoRestringido>
+            Necesitas una cuenta de <strong>Comerciante</strong> para acceder.
+        </AccesoRestringido>
     </NotAuthorized>
 </AuthorizeView>
 
@@ -298,12 +296,11 @@
 
     private async Task CerrarSesion()
     {
-        await JS.InvokeVoidAsync("borrarToken");
         if (AuthStateProvider is JwtAuthStateProvider jwt)
-        {
-            jwt.NotificarCambioAutenticacion();
-        }
-        Nav.NavigateTo("/login", forceLoad: true);
+            await jwt.CerrarSesionAsync();
+
+        // replace: la página privada desaparece del historial → "Atrás" ya no vuelve a ella
+        Nav.NavigateTo("/login", forceLoad: true, replace: true);
     }
 
     // ◆ Obligatorio por @implements IDisposable

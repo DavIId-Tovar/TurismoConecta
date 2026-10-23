@@ -1,0 +1,27 @@
+@* Cuadro que se muestra en <NotAuthorized> cuando no hay sesión o el rol no alcanza.
+   Siempre ofrece las dos salidas: volver al inicio público o iniciar sesión. *@
+
+<div class="acceso-restringido">
+    <i class="ph-fill ph-lock-key acceso-icono" aria-hidden="true"></i>
+
+    <h2>@Titulo</h2>
+
+    <p>@ChildContent</p>
+
+    <div class="acceso-acciones">
+        <a href="/" class="btn-acceso btn-acceso-sec">
+            <i class="ph ph-house"></i> Volver al inicio
+        </a>
+        <a href="/login" class="btn-acceso btn-acceso-prim">
+            <i class="ph ph-sign-in"></i> Iniciar sesión
+        </a>
+    </div>
+</div>
+
+@code {
+    // Título del cuadro (casi siempre "Acceso restringido")
+    [Parameter] public string Titulo { get; set; } = "Acceso restringido";
+
+    // El mensaje: lo que escribas ENTRE <AccesoRestringido> y </AccesoRestringido>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

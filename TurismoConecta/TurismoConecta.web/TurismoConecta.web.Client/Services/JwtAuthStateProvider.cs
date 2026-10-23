@@ -79,5 +79,13 @@ namespace TurismoConecta.web.Client.Services
         {
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }
+
+        public async Task CerrarSesionAsync()
+        {
+            await _js.InvokeVoidAsync("borrarToken");
+            NotificarCambioAutenticacion();
+        }
+
+
     }
 }

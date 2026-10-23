@@ -1,0 +1,67 @@
+.acceso-restringido {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 70vh;
+    padding: 2rem 1rem;
+    gap: 0.75rem;
+}
+
+.acceso-icono {
+    font-size: 3.5rem;
+    color: #1a7a7a;
+}
+
+.acceso-restringido h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.acceso-restringido p {
+    margin: 0;
+    max-width: 420px;
+    color: #64748b;
+}
+
+.acceso-acciones {
+    display: flex;
+    flex-wrap: wrap; /* en celular los botones bajan uno debajo del otro */
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.btn-acceso {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 1.4rem;
+    border-radius: 10px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+/* Botón principal: Iniciar sesión (relleno verde) */
+.btn-acceso-prim {
+    background: #1a7a7a;
+    color: #fff;
+}
+
+    .btn-acceso-prim:hover {
+        background: #145f5f;
+    }
+
+/* Botón secundario: Volver al inicio (solo borde) */
+.btn-acceso-sec {
+    border: 1.5px solid #1a7a7a;
+    color: #1a7a7a;
+}
+
+    .btn-acceso-sec:hover {
+        background: #e6f3f3;
+    }

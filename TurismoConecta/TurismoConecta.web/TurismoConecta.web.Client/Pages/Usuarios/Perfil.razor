@@ -165,7 +165,7 @@
         // 2. Si no hay token, redirigir al login
         if (string.IsNullOrEmpty(token))
         {
-            NavManager.NavigateTo("/login");
+            NavManager.NavigateTo("/login", replace: true);
             return;
         }
         // 3. Agregar el token a las peticiones HTTP
