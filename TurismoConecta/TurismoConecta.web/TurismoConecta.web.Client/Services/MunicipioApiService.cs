@@ -101,11 +101,7 @@ namespace TurismoConecta.web.Client.Services
             catch (Exception ex) { return (false, ex.Message); }
         }
 
-        public async Task<List<EtiquetaDto>> ListarEtiquetasAsync(CancellationToken ct = default)
-        {
-            try { return await _http.GetFromJsonAsync<List<EtiquetaDto>>("api/municipios/etiquetas", ct) ?? new(); }
-            catch { return new(); }
-        }
+      
 
         public async Task<(bool Exito, string? Url, string? Error)> SubirImagenAsync(
             Microsoft.AspNetCore.Components.Forms.IBrowserFile archivo,
@@ -134,19 +130,10 @@ namespace TurismoConecta.web.Client.Services
             catch (Exception ex) { return (false, null, ex.Message); }
         }
 
-        public async Task<List<MunicipioListadoDto>?> BuscarAsync(
-            string? texto,
-            List<int>? etiquetaIds = null,
-            CancellationToken ct = default)
+        /// <summary>Búsqueda rápida por nombre (la usa el buscador de CrearItinerario).</summary>
+        public async Task<List<MunicipioListadoDto>?> BuscarAsync(string? texto, CancellationToken ct = default)
         {
-            var query = new List<string>();
-            if (!string.IsNullOrWhiteSpace(texto))
-                query.Add($"texto={Uri.EscapeDataString(texto)}");
-
-            if (etiquetaIds is { Count: > 0 })
-                query.AddRange(etiquetaIds.Select(id => $"etiquetaIds={id}"));
-
-            var qs = query.Count > 0 ? "?" + string.Join("&", query) : "";
+            var qs = string.IsNullOrWhiteSpace(texto) ? "" : $"?texto={Uri.EscapeDataString(texto.Trim())}";
 
             try { return await _http.GetFromJsonAsync<List<MunicipioListadoDto>>($"api/municipios/buscar{qs}", ct); }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }

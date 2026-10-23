@@ -75,7 +75,6 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IMunicipioService, MunicipioService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IMunicipioEtiquetaService, MunicipioEtiquetaService>();
-builder.Services.AddScoped<IFiltroEtiquetasService, FiltroEtiquetasService>();
 builder.Services.AddScoped<IItinerarioService, ItinerarioService>();
 builder.Services.AddScoped<IEtiquetaService, EtiquetaService>();
 builder.Services.AddScoped<INegocioService, NegocioService>();

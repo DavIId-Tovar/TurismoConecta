@@ -1,4 +1,4 @@
-﻿using TurismoConecta.api.Data;
+using TurismoConecta.api.Data;
 using TurismoConecta.api.DTOs;
 using TurismoConecta.api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -52,23 +52,26 @@ public class MunicipioEtiquetaService : IMunicipioEtiquetaService
         if (usuario is null || usuario.MunicipioAsignadoId != idMunicipio)
             return (false, "No tienes permiso para editar las etiquetas de este municipio.");
 
+        // Si llega [4, 4, 6] se toma como [4, 6]: el mismo enlace nunca se inserta dos veces
+        var idsUnicos = dto.IdsEtiquetas.Distinct().ToList();
+
         //  Regla de negocio del backlog: mínimo 1 etiqueta
-        if (dto.IdsEtiquetas.Count == 0)
+        if (idsUnicos.Count == 0)
             return (false, "El municipio debe tener al menos 1 etiqueta.");
 
         var existentes = await _db.Etiqueta
-            .Where(e => dto.IdsEtiquetas.Contains(e.IdEtiqueta) && e.Activo)
+            .Where(e => idsUnicos.Contains(e.IdEtiqueta) && e.Activo)
             .Select(e => e.IdEtiqueta)
             .ToListAsync();
 
-        if (existentes.Count != dto.IdsEtiquetas.Count)
+        if (existentes.Count != idsUnicos.Count)
             return (false, "Una o más etiquetas seleccionadas no existen o están inactivas.");
 
         var actuales = _db.MunicipioEtiqueta.Where(me => me.IdMunicipio == idMunicipio);
         _db.MunicipioEtiqueta.RemoveRange(actuales);
 
         
-        var nuevas = dto.IdsEtiquetas.Select(idEtiqueta => new MunicipioEtiqueta
+        var nuevas = idsUnicos.Select(idEtiqueta => new MunicipioEtiqueta
         {
             IdMunicipio = idMunicipio,
             IdEtiqueta = idEtiqueta
