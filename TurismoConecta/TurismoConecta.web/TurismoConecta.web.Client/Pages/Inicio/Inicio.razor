@@ -1114,12 +1114,11 @@
 
     private async Task CerrarSesion()
     {
-        await JS.InvokeVoidAsync("borrarToken");
         if (AuthStateProvider is JwtAuthStateProvider jwt)
-        {
-            jwt.NotificarCambioAutenticacion();
-        }
-        Nav.NavigateTo("/login", forceLoad: true);
+            await jwt.CerrarSesionAsync();
+
+        // replace: la página privada desaparece del historial → "Atrás" ya no vuelve a ella
+        Nav.NavigateTo("/login", forceLoad: true, replace: true);
     }
 
     // ════════════════════════════════════════════════

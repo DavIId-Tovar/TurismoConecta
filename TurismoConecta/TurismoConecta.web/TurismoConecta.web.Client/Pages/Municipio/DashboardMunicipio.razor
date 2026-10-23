@@ -248,11 +248,9 @@
         </div>
     </Authorized>
     <NotAuthorized>
-        <div class="sin-acceso-muni">
-            <h2>Acceso Restringido</h2>
-            <p>Se requiere cuenta de <strong>Administrador Municipal</strong>.</p>
-            <button @onclick='() => Nav.NavigateTo("/login")'>Iniciar Sesión</button>
-        </div>
+        <AccesoRestringido>
+            Se requiere cuenta de <strong>Administrador Municipal</strong>.
+        </AccesoRestringido>
     </NotAuthorized>
 </AuthorizeView>
 
@@ -315,12 +313,10 @@
 
     private async Task CerrarSesion()
     {
-        await JS.InvokeVoidAsync("borrarToken");
         if (AuthStateProvider is JwtAuthStateProvider jwt)
-        {
-            jwt.NotificarCambioAutenticacion();
-        }
-        Nav.NavigateTo("/login", forceLoad: true);
+            await jwt.CerrarSesionAsync();
+
+        Nav.NavigateTo("/login", forceLoad: true, replace: true);
     }
 
     public void Dispose()

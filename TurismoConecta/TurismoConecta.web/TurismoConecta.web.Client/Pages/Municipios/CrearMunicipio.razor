@@ -271,11 +271,9 @@
         </div>
     </Authorized>
     <NotAuthorized>
-        <div class="acceso-denegado-clean">
-            <h2>Acceso Restringido</h2>
-            <p>Se requieren privilegios de Administrador General para registrar municipios.</p>
-            <button class="btn-secundario-clean" @onclick='() => Nav.NavigateTo("/municipios")'>Regresar al catálogo</button>
-        </div>
+        <AccesoRestringido>
+            Se requieren privilegios de <strong>Administrador General</strong> para registrar municipios.
+        </AccesoRestringido>
     </NotAuthorized>
 </AuthorizeView>
 

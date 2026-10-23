@@ -1,4 +1,4 @@
-﻿@page "/register"
+@page "/register"
 @layout EmptyLayout
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @using TurismoConecta.web.Client.Models
@@ -12,10 +12,14 @@
         <div class="form-section">
             <div class="form-wrapper">
 
-                <div class="brand">
+                <a href="/" class="volver-inicio">
+                    <i class="ph ph-arrow-left"></i> Volver al inicio
+                </a>
+
+                <a href="/" class="brand" title="Ir al inicio">
                     <i class="ph-fill ph-compass"></i>
                     <span>TurismoConecta</span>
-                </div>
+                </a>
 
                 <div class="header-text">
                     <h1>¡Crea tu Cuenta!</h1>
