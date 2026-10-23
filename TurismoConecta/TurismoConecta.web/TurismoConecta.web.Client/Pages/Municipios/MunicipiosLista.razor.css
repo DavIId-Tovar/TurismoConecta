@@ -45,6 +45,53 @@
     pointer-events: none;
 }
 
+/* Botón "← Volver al inicio" arriba a la izquierda del hero */
+.hero-nav {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    z-index: 2;
+}
+
+.hero-volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(247, 243, 236, 0.35);
+    background: rgba(247, 243, 236, 0.08);
+    backdrop-filter: blur(6px);
+    color: var(--crema);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+    .hero-volver:hover {
+        background: rgba(247, 243, 236, 0.18);
+        border-color: rgba(247, 243, 236, 0.6);
+        color: var(--crema);
+    }
+
+    .hero-volver:focus-visible {
+        outline: 2px solid var(--ocre);
+        outline-offset: 2px;
+    }
+
+
+@media (max-width: 600px) {
+    .hero {
+        padding-top: 76px;
+    }
+
+    .hero-nav {
+        top: 16px;
+        left: 16px;
+    }
+}
+
 .hero-contenido {
     position: relative;
     max-width: 680px;
@@ -666,4 +713,76 @@
 
 .btn-itinerario:hover .btn-itinerario-flecha {
     transform: translateX(3px) !important;
+}
+
+
+
+/* ==========================================================================
+   EXPLORADOR: barra de resultados, orden y calificación de las tarjetas
+   ========================================================================== */
+.catalogo-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.catalogo-conteo {
+    margin: 0;
+    font-weight: 600;
+    color: var(--tinta-suave);
+}
+
+.catalogo-orden {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--tinta-suave);
+}
+
+    .catalogo-orden select {
+        padding: 8px 12px;
+        border: 1px solid var(--piedra);
+        border-radius: 10px;
+        background: var(--blanco);
+        color: var(--tinta);
+        font: inherit;
+        cursor: pointer;
+    }
+
+        .catalogo-orden select:focus {
+            outline: 2px solid var(--teal);
+            outline-offset: 1px;
+        }
+
+.card-calificacion {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 20px;
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+}
+
+.calif-numero {
+    font-weight: 700;
+    color: var(--tinta);
+}
+
+.calif-total,
+.calif-sin {
+    color: var(--tinta-suave);
+}
+
+.calif-sin {
+    font-style: italic;
+}
+
+.sello-recomendado {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }

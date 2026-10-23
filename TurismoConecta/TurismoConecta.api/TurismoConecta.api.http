@@ -1,6 +1,6 @@
 @TurismoConecta.api_HostAddress = http://localhost:5055
 
-GET {{TurismoConecta.api_HostAddress}}/weatherforecast/
+GET {{TurismoConecta.api_HostAddress}}/api/municipios/explorar?orden=calificacion
 Accept: application/json
 
 ###

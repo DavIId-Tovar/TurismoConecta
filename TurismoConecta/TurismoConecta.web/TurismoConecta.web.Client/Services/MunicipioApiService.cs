@@ -38,6 +38,32 @@ namespace TurismoConecta.web.Client.Services
             }
         }
 
+        /// <summary>Catálogo público con filtros, orden y paginación en el servidor (api/municipios/explorar).</summary>
+        public async Task<ResultadoPaginado<MunicipioExplorarDto>?> ExplorarAsync(
+            string? texto,
+            IEnumerable<int>? etiquetaIds,
+            string? orden,
+            int pagina = 1,
+            int tamano = 12,
+            CancellationToken ct = default)
+        {
+            var qs = new List<string> { $"pagina={pagina}", $"tamano={tamano}" };
+
+            if (!string.IsNullOrWhiteSpace(texto))
+                qs.Add($"texto={Uri.EscapeDataString(texto.Trim())}");
+
+            if (etiquetaIds is not null && etiquetaIds.Any())
+                qs.Add($"etiquetas={string.Join(",", etiquetaIds)}");
+
+            if (!string.IsNullOrWhiteSpace(orden))
+                qs.Add($"orden={orden}");
+
+            try { return await _http.GetFromJsonAsync<ResultadoPaginado<MunicipioExplorarDto>>($"api/municipios/explorar?{string.Join("&", qs)}", ct); }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
+
+
+
         public async Task<MunicipioFichaDto?> ObtenerFichaAsync(int id, CancellationToken ct = default)
         {
             try { return await _http.GetFromJsonAsync<MunicipioFichaDto>($"api/municipios/{id}", ct); }
@@ -75,11 +101,7 @@ namespace TurismoConecta.web.Client.Services
             catch (Exception ex) { return (false, ex.Message); }
         }
 
-        public async Task<List<EtiquetaDto>> ListarEtiquetasAsync(CancellationToken ct = default)
-        {
-            try { return await _http.GetFromJsonAsync<List<EtiquetaDto>>("api/municipios/etiquetas", ct) ?? new(); }
-            catch { return new(); }
-        }
+      
 
         public async Task<(bool Exito, string? Url, string? Error)> SubirImagenAsync(
             Microsoft.AspNetCore.Components.Forms.IBrowserFile archivo,
@@ -108,19 +130,10 @@ namespace TurismoConecta.web.Client.Services
             catch (Exception ex) { return (false, null, ex.Message); }
         }
 
-        public async Task<List<MunicipioListadoDto>?> BuscarAsync(
-            string? texto,
-            List<int>? etiquetaIds = null,
-            CancellationToken ct = default)
+        /// <summary>Búsqueda rápida por nombre (la usa el buscador de CrearItinerario).</summary>
+        public async Task<List<MunicipioListadoDto>?> BuscarAsync(string? texto, CancellationToken ct = default)
         {
-            var query = new List<string>();
-            if (!string.IsNullOrWhiteSpace(texto))
-                query.Add($"texto={Uri.EscapeDataString(texto)}");
-
-            if (etiquetaIds is { Count: > 0 })
-                query.AddRange(etiquetaIds.Select(id => $"etiquetaIds={id}"));
-
-            var qs = query.Count > 0 ? "?" + string.Join("&", query) : "";
+            var qs = string.IsNullOrWhiteSpace(texto) ? "" : $"?texto={Uri.EscapeDataString(texto.Trim())}";
 
             try { return await _http.GetFromJsonAsync<List<MunicipioListadoDto>>($"api/municipios/buscar{qs}", ct); }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
@@ -176,6 +189,19 @@ namespace TurismoConecta.web.Client.Services
         public List<FechaRelevanteDto> FechasRelevantes { get; set; } = new();    
 
     }
+
+    // Respuesta de api/municipios/explorar (tarjetas del catálogo)
+    public class MunicipioExplorarDto
+    {
+        public int IdMunicipio { get; set; }
+        public string Nombre { get; set; } = "";
+        public string? ImagenUrl { get; set; }
+        public string? Descripcion { get; set; }
+        public List<string> Etiquetas { get; set; } = new();
+        public double? PromedioCalificacion { get; set; }
+        public int TotalResenas { get; set; }
+    }
+
 
     public class FechaRelevanteDto
     {

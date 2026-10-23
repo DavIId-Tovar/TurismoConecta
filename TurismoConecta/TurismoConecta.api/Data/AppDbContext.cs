@@ -346,6 +346,7 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<MunicipioEtiqueta>(entity =>
         {
             entity.HasKey(e => e.IdMunicipioEtiqueta);
+            entity.HasIndex(e => new { e.IdMunicipio, e.IdEtiqueta }, "UQ_MunicipioEtiqueta_Municipio_Etiqueta").IsUnique();
 
             entity.Property(e => e.IdMunicipioEtiqueta).HasColumnName("idMunicipioEtiqueta");
             entity.Property(e => e.IdEtiqueta).HasColumnName("idEtiqueta");
