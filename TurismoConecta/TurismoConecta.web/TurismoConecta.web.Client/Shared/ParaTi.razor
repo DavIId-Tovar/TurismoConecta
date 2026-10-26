@@ -1,0 +1,321 @@
+@* Sección "Para ti" del Inicio: el usuario marca sus gustos y las recomendaciones cambian en vivo.
+   Con sesión: los gustos se guardan en la BD y se mezclan con favoritos, reseñas e itinerarios.
+   Sin sesión: los gustos se recuerdan en este navegador hasta que inicie sesión. *@
+@implements IDisposable
+@inject RecomendacionApiService RecoService
+@inject EtiquetaApiService EtiquetaService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<section class="para-ti" id="gustos" aria-labelledby="para-ti-titulo">
+
+    <div class="para-ti-cabecera">
+        <div>
+            <span class="para-ti-eyebrow">Recomendaciones personalizadas</span>
+            <h2 id="para-ti-titulo">@Titulo</h2>
+        </div>
+        <p class="para-ti-bajada">
+            @(autenticado
+                ? "Marca lo que te inspira. Mezclamos tus gustos con tus favoritos, reseñas e itinerarios."
+                : "Marca lo que te inspira y te mostramos los municipios que mejor encajan contigo.")
+        </p>
+    </div>
+
+    @* ============ GUSTOS (selección múltiple) ============ *@
+    @if (cargandoEtiquetas)
+    {
+        <div class="para-ti-gustos">
+            @for (var i = 0; i < 7; i++)
+            {
+                <span class="gusto-chip-esqueleto"></span>
+            }
+        </div>
+    }
+    else if (etiquetas.Any())
+    {
+        <div class="para-ti-gustos" role="group" aria-label="Tus gustos">
+            @foreach (var etiqueta in etiquetas)
+            {
+                var activo = seleccion.Contains(etiqueta.IdEtiqueta);
+                <button type="button"
+                        class="gusto-chip @(activo ? "activo" : "")"
+                        aria-pressed="@(activo ? "true" : "false")"
+                        @onclick="() => AlternarGusto(etiqueta.IdEtiqueta)">
+                    <span class="gusto-chip-icono" aria-hidden="true">
+                        @if (activo)
+                        {
+                            <i class="ph-bold ph-check"></i>
+                        }
+                        else if (EsClasePhosphor(etiqueta.Icono))
+                        {
+                            <i class="@etiqueta.Icono"></i>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(etiqueta.Icono))
+                        {
+                            <span>@etiqueta.Icono</span>
+                        }
+                        else
+                        {
+                            <i class="ph ph-sparkle"></i>
+                        }
+                    </span>
+                    @etiqueta.Nombre
+                </button>
+            }
+        </div>
+
+        <div class="para-ti-estado" aria-live="polite">
+            @if (aviso is not null)
+            {
+                <span class="para-ti-aviso @(avisoEsError ? "error" : "")">
+                    <i class="@(avisoEsError ? "ph-fill ph-warning-circle" : "ph-fill ph-check-circle")" aria-hidden="true"></i>
+                    @aviso
+                </span>
+            }
+            @if (seleccion.Any())
+            {
+                <button type="button" class="para-ti-limpiar" @onclick="LimpiarGustos">Limpiar gustos</button>
+            }
+        </div>
+    }
+
+    @* ============ RECOMENDACIONES ============ *@
+    <div class="para-ti-resultados" aria-busy="@(cargandoRecomendaciones ? "true" : "false")">
+        @if (cargandoRecomendaciones && !recomendaciones.Any())
+        {
+            <div class="para-ti-grid">
+                @for (var i = 0; i < Cantidad; i++)
+                {
+                    <div class="tarjeta-esqueleto"></div>
+                }
+            </div>
+        }
+        else if (huboError)
+        {
+            <div class="para-ti-vacio">
+                <p>No pudimos cargar tus recomendaciones.</p>
+                <button type="button" class="para-ti-reintentar" @onclick="Recargar">Reintentar</button>
+            </div>
+        }
+        else if (!recomendaciones.Any())
+        {
+            <div class="para-ti-vacio">
+                <p>Aún no hay destinos para recomendarte. ¡Vuelve pronto!</p>
+            </div>
+        }
+        else
+        {
+            <div class="para-ti-grid @(cargandoRecomendaciones ? "actualizando" : "")">
+                @foreach (var recomendacion in recomendaciones)
+                {
+                    <TarjetaRecomendacion @key="recomendacion.IdMunicipio"
+                                          Item="recomendacion"
+                                          MostrarCoincidencia="true"
+                                          Desde="inicio" />
+                }
+            </div>
+        }
+    </div>
+
+    @if (!autenticado)
+    {
+        <p class="para-ti-cta">
+            <i class="ph ph-bookmark-simple" aria-hidden="true"></i>
+            <span>
+                <a href="/login?returnUrl=%2F%23gustos">Inicia sesión</a> para guardar tus gustos y recibir
+                recomendaciones según tus favoritos y reseñas.
+            </span>
+        </p>
+    }
+</section>
+
+@code {
+    private const int Cantidad = 6;
+    private const int MaximoGustos = 10;
+    private const string ClaveGustosLocales = "tc_gustos";
+
+    private bool autenticado;
+    private string? primerNombre;
+
+    private List<EtiquetaDto> etiquetas = new();
+    private HashSet<int> seleccion = new();
+    private List<RecomendacionDto> recomendaciones = new();
+
+    private bool cargandoEtiquetas = true;
+    private bool cargandoRecomendaciones = true;
+    private bool huboError;
+    private string? aviso;
+    private bool avisoEsError;
+
+    private System.Timers.Timer? _esperaCambios;
+    private CancellationTokenSource? _ctsCarga;
+
+    private string Titulo => autenticado && !string.IsNullOrWhiteSpace(primerNombre)
+        ? $"Elegidos para ti, {primerNombre}"
+        : seleccion.Any() ? "Elegidos para ti" : "¿Qué te gusta?";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        autenticado = estado.User.Identity?.IsAuthenticated == true;
+        primerNombre = estado.User.Identity?.Name?
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+
+        var tareaEtiquetas = EtiquetaService.ListarAsync();
+        var gustosLocales = await LeerGustosLocalesAsync();
+        var gustos = gustosLocales;
+
+        if (autenticado)
+        {
+            gustos = await RecoService.ObtenerPreferenciasAsync();
+
+            // Eligió gustos antes de iniciar sesión: se pasan a su cuenta la primera vez
+            if (gustos.Count == 0 && gustosLocales.Count > 0 && await RecoService.GuardarPreferenciasAsync(gustosLocales))
+            {
+                gustos = gustosLocales;
+                await GuardarGustosLocalesAsync(new List<int>());
+                MostrarAviso("Guardamos en tu cuenta los gustos que elegiste");
+            }
+        }
+
+        etiquetas = (await tareaEtiquetas)
+            .Where(e => e.Activo)
+            .OrderBy(e => e.Nombre)
+            .ToList();
+
+        // Si una etiqueta se desactivó, deja de contar como gusto
+        seleccion = gustos.Where(id => etiquetas.Any(e => e.IdEtiqueta == id)).ToHashSet();
+        cargandoEtiquetas = false;
+
+        await CargarRecomendacionesAsync();
+    }
+
+    // ---- Gustos ----
+    private void AlternarGusto(int idEtiqueta)
+    {
+        if (!seleccion.Remove(idEtiqueta))
+        {
+            if (seleccion.Count >= MaximoGustos)
+            {
+                MostrarAviso($"Puedes elegir hasta {MaximoGustos} gustos", esError: true);
+                return;
+            }
+            seleccion.Add(idEtiqueta);
+        }
+
+        ProgramarActualizacion();
+    }
+
+    private void LimpiarGustos()
+    {
+        seleccion.Clear();
+        ProgramarActualizacion();
+    }
+
+    // Espera 450 ms después del último clic: si marca 3 gustos seguidos, se guarda y recalcula una sola vez
+    private void ProgramarActualizacion()
+    {
+        aviso = null;
+        cargandoRecomendaciones = true;
+
+        _esperaCambios?.Stop();
+        _esperaCambios?.Dispose();
+        _esperaCambios = new System.Timers.Timer(450) { AutoReset = false };
+        _esperaCambios.Elapsed += async (_, _) => await InvokeAsync(async () =>
+        {
+            await GuardarGustosAsync();
+            await CargarRecomendacionesAsync();
+            StateHasChanged();
+        });
+        _esperaCambios.Start();
+    }
+
+    private async Task GuardarGustosAsync()
+    {
+        if (!autenticado)
+        {
+            await GuardarGustosLocalesAsync(seleccion.ToList());
+            return;
+        }
+
+        if (await RecoService.GuardarPreferenciasAsync(seleccion))
+            MostrarAviso("Gustos guardados");
+        else
+            MostrarAviso("No pudimos guardar tus gustos. Inténtalo de nuevo.", esError: true);
+    }
+
+    // ---- Recomendaciones ----
+    private async Task CargarRecomendacionesAsync()
+    {
+        // Si llega un cambio más nuevo mientras esta carga sigue en camino, se descarta esta respuesta
+        _ctsCarga?.Cancel();
+        _ctsCarga = new CancellationTokenSource();
+        var token = _ctsCarga.Token;
+
+        cargandoRecomendaciones = true;
+        huboError = false;
+
+        var resultado = autenticado
+            ? await RecoService.ParaMiAsync(Cantidad, token)
+            : await RecoService.ParaTiAsync(seleccion, Cantidad, token);
+
+        if (token.IsCancellationRequested) return;
+
+        huboError = resultado is null;
+        recomendaciones = resultado ?? new();
+        cargandoRecomendaciones = false;
+    }
+
+    private Task Recargar() => CargarRecomendacionesAsync();
+
+    private void MostrarAviso(string texto, bool esError = false)
+    {
+        aviso = texto;
+        avisoEsError = esError;
+    }
+
+    // ---- Gustos sin sesión: se recuerdan en este navegador ----
+    private async Task<List<int>> LeerGustosLocalesAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("localStorage.getItem", ClaveGustosLocales);
+            return string.IsNullOrWhiteSpace(json)
+                ? new()
+                : System.Text.Json.JsonSerializer.Deserialize<List<int>>(json) ?? new();
+        }
+        catch
+        {
+            return new();   // modo privado o dato dañado: se empieza sin gustos
+        }
+    }
+
+    private async Task GuardarGustosLocalesAsync(List<int> gustos)
+    {
+        try
+        {
+            if (gustos.Count == 0)
+                await JS.InvokeVoidAsync("localStorage.removeItem", ClaveGustosLocales);
+            else
+                await JS.InvokeVoidAsync("localStorage.setItem", ClaveGustosLocales, System.Text.Json.JsonSerializer.Serialize(gustos));
+        }
+        catch
+        {
+            // Si el navegador bloquea el almacenamiento, los gustos solo duran mientras la página esté abierta
+        }
+    }
+
+    /// <summary>true si el ícono guardado es una clase de Phosphor ("ph ph-…", "ph-fill ph-…").</summary>
+    private static bool EsClasePhosphor(string? icono) =>
+        !string.IsNullOrWhiteSpace(icono) &&
+        icono.TrimStart().StartsWith("ph", StringComparison.OrdinalIgnoreCase);
+
+    public void Dispose()
+    {
+        _esperaCambios?.Stop();
+        _esperaCambios?.Dispose();
+        _ctsCarga?.Cancel();
+        _ctsCarga?.Dispose();
+    }
+}

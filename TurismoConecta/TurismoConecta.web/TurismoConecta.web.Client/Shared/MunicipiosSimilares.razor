@@ -1,0 +1,47 @@
+@* "Si te gustó X…": municipios parecidos por etiquetas y bien calificados (va al final de la ficha) *@
+@inject RecomendacionApiService RecoService
+
+@if (cargando)
+{
+    <div class="similares-grid">
+        @for (var i = 0; i < Cantidad; i++)
+        {
+            <div class="similar-esqueleto"></div>
+        }
+    </div>
+}
+else if (similares.Any())
+{
+    <div class="similares-grid">
+        @foreach (var similar in similares)
+        {
+            <TarjetaRecomendacion @key="similar.IdMunicipio" Item="similar" Desde="@Desde" />
+        }
+    </div>
+}
+else
+{
+    <p class="similares-vacio">Pronto tendremos más destinos parecidos para recomendarte.</p>
+}
+
+@code {
+    private const int Cantidad = 4;
+
+    [Parameter, EditorRequired] public int IdMunicipio { get; set; }
+    [Parameter] public string? Desde { get; set; }
+
+    private List<RecomendacionDto> similares = new();
+    private bool cargando = true;
+    private int idCargado;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Al pasar de una ficha a otra la página no se recrea: solo se recarga si cambió el municipio
+        if (IdMunicipio == idCargado) return;
+        idCargado = IdMunicipio;
+
+        cargando = true;
+        similares = await RecoService.SimilaresAsync(IdMunicipio, Cantidad) ?? new();
+        cargando = false;
+    }
+}

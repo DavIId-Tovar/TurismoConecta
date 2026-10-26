@@ -425,10 +425,25 @@
                         <span class="bloque-indice">07</span>
                         <h2 class="bloque-titulo">Historia y Memoria</h2>
                     </div>
-                    <p class="parrafo-editorial">@ficha.Historia</p>
+              
+                                <p class="parrafo-editorial">@ficha.Historia</p>
                 </section>
             }
+
+            <div class="divisor-seccion"></div>
+
+            <!-- SECCIÓN FINAL: SI TE GUSTÓ ESTE MUNICIPIO (Recomendaciones) -->
+            <section class="bloque-contenido">
+                <div class="bloque-cabecera">
+                    <span class="bloque-indice"><i class="ph ph-compass" aria-hidden="true"></i></span>
+                    <h2 class="bloque-titulo">Si te gustó @ficha.Nombre…</h2>
+                </div>
+
+                <MunicipiosSimilares IdMunicipio="ficha.IdMunicipio" Desde="@Desde" />
+            </section>
         </main>
+
+        
 
         <!-- FOOTER DISCRETO -->
         <footer class="selva-footer">

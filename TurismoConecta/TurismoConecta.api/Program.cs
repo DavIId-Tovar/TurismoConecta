@@ -79,6 +79,7 @@ builder.Services.AddScoped<IItinerarioService, ItinerarioService>();
 builder.Services.AddScoped<IEtiquetaService, EtiquetaService>();
 builder.Services.AddScoped<INegocioService, NegocioService>();
 builder.Services.AddScoped<IReseñaService, ReseñaService>();
+builder.Services.AddScoped<IRecomendacionService, RecomendacionService>();
 builder.Services.AddScoped<IFavoritoService, FavoritoService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();
 
