@@ -27,6 +27,7 @@ namespace TurismoConecta.api.DTOs.Recomendaciones
         public const string Calificado = "calificado";
         public const string Itinerario = "itinerario";
         public const string Similar = "similar";
+        public const string Comunidad = "comunidad";
         public const string Joya = "joya";
         public const string Popular = "popular";
         public const string Nuevo = "nuevo";

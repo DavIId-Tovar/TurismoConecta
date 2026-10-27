@@ -1,0 +1,99 @@
+@* Panel del admin general: cómo va el modelo de ML.NET y botón para entrenarlo a mano *@
+@inject RecomendacionApiService RecoService
+
+<section class="motor-card" aria-labelledby="motor-titulo">
+    <div class="motor-cabecera">
+        <div class="motor-titulo-grupo">
+            <span class="motor-icono" aria-hidden="true"><i class="ph-fill ph-brain"></i></span>
+            <div>
+                <h3 id="motor-titulo">Motor de recomendaciones</h3>
+                <span class="motor-subtitulo">Filtrado colaborativo con ML.NET</span>
+            </div>
+        </div>
+
+        @if (estado is not null)
+        {
+            <span class="motor-chip @(estado.Activo ? "activo" : "reuniendo")">
+                <span class="motor-punto" aria-hidden="true"></span>
+                @(estado.Activo ? "Activo" : "Reuniendo datos")
+            </span>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <p class="motor-texto">Consultando el modelo...</p>
+    }
+    else if (estado is null)
+    {
+        <p class="motor-texto error">No se pudo consultar el estado del modelo.</p>
+    }
+    else
+    {
+        <p class="motor-texto">@estado.Mensaje</p>
+
+        <div class="motor-metricas">
+            <div class="motor-metrica">
+                <div class="motor-metrica-cabecera">
+                    <span>Interacciones</span>
+                    <strong>@estado.Interacciones / @estado.MinimoInteracciones</strong>
+                </div>
+                <div class="motor-barra">
+                    <div class="motor-barra-relleno" style="width:@Porcentaje(estado.Interacciones, estado.MinimoInteracciones)%"></div>
+                </div>
+            </div>
+
+            <div class="motor-metrica">
+                <div class="motor-metrica-cabecera">
+                    <span title="Viajeros con 2 o más interacciones">Viajeros activos</span>
+                    <strong>@estado.Usuarios / @estado.MinimoUsuarios</strong>
+                </div>
+                <div class="motor-barra">
+                    <div class="motor-barra-relleno" style="width:@Porcentaje(estado.Usuarios, estado.MinimoUsuarios)%"></div>
+                </div>
+            </div>
+
+            <div class="motor-dato">
+                <span>Error promedio</span>
+                <strong>@(estado.ErrorPromedio is double error ? $"± {error:0.00} ★" : "—")</strong>
+            </div>
+
+            <div class="motor-dato">
+                <span>Último entrenamiento</span>
+                <strong>@(estado.UltimoEntrenamiento?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</strong>
+            </div>
+        </div>
+    }
+
+    <div class="motor-pie">
+        <span class="motor-ayuda">
+            Aprende de reseñas, favoritos e itinerarios. Se entrena solo cada pocas horas.
+        </span>
+        <button type="button" class="motor-boton" disabled="@entrenando" @onclick="Entrenar">
+            <i class="ph ph-arrows-clockwise @(entrenando ? "girando" : "")" aria-hidden="true"></i>
+            @(entrenando ? "Entrenando..." : "Entrenar ahora")
+        </button>
+    </div>
+</section>
+
+@code {
+    private EstadoModeloDto? estado;
+    private bool cargando = true;
+    private bool entrenando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        estado = await RecoService.ObtenerEstadoModeloAsync();
+        cargando = false;
+    }
+
+    private async Task Entrenar()
+    {
+        entrenando = true;
+        estado = await RecoService.EntrenarModeloAsync() ?? estado;
+        entrenando = false;
+    }
+
+    private static int Porcentaje(int valor, int minimo) =>
+        minimo <= 0 ? 100 : Math.Min(100, valor * 100 / minimo);
+}

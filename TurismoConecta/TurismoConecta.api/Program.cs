@@ -14,6 +14,7 @@ using TurismoConecta.api.Hubs;
 using TurismoConecta.api.Services;
 using TurismoConecta.api.Services.Etiquetas;
 using TurismoConecta.api.Services.Interfaces;
+using TurismoConecta.api.Services.Recomendaciones; 
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -80,6 +81,11 @@ builder.Services.AddScoped<IEtiquetaService, EtiquetaService>();
 builder.Services.AddScoped<INegocioService, NegocioService>();
 builder.Services.AddScoped<IReseñaService, ReseñaService>();
 builder.Services.AddScoped<IRecomendacionService, RecomendacionService>();
+// Recomendaciones con ML.NET: el modelo vive en memoria (singleton) y se entrena en segundo plano.
+// con las interacciones de los usuarios (favoritos, reseñas, itinerarios) se va alimentando y mejorando.
+builder.Services.AddSingleton<ModeloColaborativo>();
+builder.Services.AddScoped<EntrenadorColaborativo>();
+builder.Services.AddHostedService<EntrenamientoRecomendacionesService>();
 builder.Services.AddScoped<IFavoritoService, FavoritoService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();
 

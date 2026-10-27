@@ -3,6 +3,7 @@ using TurismoConecta.api.Data;
 using TurismoConecta.api.DTOs.Recomendaciones;
 using TurismoConecta.api.Models;
 using TurismoConecta.api.Services.Interfaces;
+using TurismoConecta.api.Services.Recomendaciones;
 
 namespace TurismoConecta.api.Services
 {
@@ -19,10 +20,18 @@ namespace TurismoConecta.api.Services
         private const double PesoItinerario = 2.0;
         private const double PesoPorEstrella = 1.5;        // 5★ → +3, 4★ → +1.5, 2★ → -1.5, 1★ → -3
 
-        // ---- Cuánto pesa cada parte del puntaje final (la Entrega 2 suma el colaborativo de ML.NET) ----
+        
+        // ---- Cuánto pesa cada parte del puntaje final (sin modelo colaborativo) ----
         private const double PesoAfinidad = 0.55;
         private const double PesoCalidad = 0.30;
         private const double PesoNovedad = 0.15;
+
+        // ---- Cuando el modelo de ML.NET conoce al usuario, entra con el 20 % ----
+        private const double PesoAfinidadConModelo = 0.45;
+        private const double PesoCalidadConModelo = 0.25;
+        private const double PesoColaborativo = 0.20;
+        private const double PesoNovedadConModelo = 0.10;
+        private const double ColaborativoMinimoRazon = 0.8;  // predice 4.2★ o más
 
         private const double PenalizacionParecidos = 0.25;  // diversidad: baja a los muy parecidos a los ya elegidos
         private const int ConfianzaBayesiana = 3;           // "reseñas imaginarias" de 3.5★ que tiene todo municipio
@@ -31,7 +40,13 @@ namespace TurismoConecta.api.Services
         private const int MaximoPreferencias = 10;
 
         private readonly AppDbContext _context;
-        public RecomendacionService(AppDbContext context) => _context = context;
+        private readonly ModeloColaborativo _modelo;
+
+        public RecomendacionService(AppDbContext context, ModeloColaborativo modelo)
+        {
+            _context = context;
+            _modelo = modelo;
+        }
 
         // ════════════════════════════════════════════════
         // TIPOS DE TRABAJO
@@ -45,7 +60,7 @@ namespace TurismoConecta.api.Services
             double? Promedio,
             int TotalResenas);
 
-        private sealed record Puntuado(Candidato Municipio, double Puntaje, double Afinidad);
+        private sealed record Puntuado(Candidato Municipio, double Puntaje, double Afinidad, double? Colaborativo);
 
         /// <summary>Cuánto pesa una etiqueta en el perfil y qué la originó (para explicar la recomendación).</summary>
         private sealed class AporteEtiqueta
@@ -64,7 +79,7 @@ namespace TurismoConecta.api.Services
             cantidad = Math.Clamp(cantidad, 1, 12);
             var candidatos = await CargarCandidatosAsync(ct);
             var (perfil, conocidos) = await ConstruirPerfilAsync(idUsuario, candidatos, ct);
-            return Clasificar(candidatos, perfil, conocidos, cantidad);
+                        return Clasificar(candidatos, perfil, conocidos, cantidad, idUsuario);
         }
 
         public async Task<List<RecomendacionDto>> PorGustosAsync(List<int> idsEtiquetas, int cantidad, CancellationToken ct = default)
@@ -81,7 +96,7 @@ namespace TurismoConecta.api.Services
             foreach (var idEtiqueta in idsEtiquetas.Distinct().Take(MaximoPreferencias))
                 Sumar(perfil, idEtiqueta, PesoGustoDeclarado, TiposRazon.Gusto, nombres.GetValueOrDefault(idEtiqueta, ""));
 
-            return Clasificar(candidatos, perfil, new HashSet<int>(), cantidad);
+            return Clasificar(candidatos, perfil, new HashSet<int>(), cantidad, idUsuario: null);
         }
 
         public async Task<List<RecomendacionDto>> SimilaresAsync(int idMunicipio, int cantidad, CancellationToken ct = default)
@@ -292,7 +307,7 @@ namespace TurismoConecta.api.Services
         // PUNTAJE, DIVERSIDAD Y RAZONES
         // ════════════════════════════════════════════════
         private List<RecomendacionDto> Clasificar(
-            List<Candidato> candidatos, Dictionary<int, AporteEtiqueta> perfil, HashSet<int> conocidos, int cantidad)
+    List<Candidato> candidatos, Dictionary<int, AporteEtiqueta> perfil, HashSet<int> conocidos, int cantidad, int? idUsuario)
         {
             var hayPerfil = perfil.Values.Any(a => a.Peso > 0);
 
@@ -313,12 +328,22 @@ namespace TurismoConecta.api.Services
                     var afinidad = maximaCruda > 0 ? crudas[c.IdMunicipio] / maximaCruda : 0;
                     var novedad = conocidos.Contains(c.IdMunicipio) ? 0 : 1;
 
-                    // Sin gustos todavía: lo mejor calificado por los viajeros
-                    var puntaje = hayPerfil
-                        ? PesoAfinidad * afinidad + PesoCalidad * Calidad(c) + PesoNovedad * novedad
-                        : 0.85 * Calidad(c) + 0.15 * novedad;
+                    // Lo que ML.NET estima que le daría este usuario (1-5★), llevado a 0-1. null si no lo conoce
+                    var colaborativo = idUsuario is int id && _modelo.Predecir(id, c.IdMunicipio) is double estimada
+                        ? (estimada - 1) / 4
+                        : (double?)null;
 
-                    return new Puntuado(c, puntaje, afinidad);
+                    var puntaje = (hayPerfil, colaborativo) switch
+                    {
+                        (true, double colab) => PesoAfinidadConModelo * afinidad + PesoCalidadConModelo * Calidad(c)
+                                              + PesoColaborativo * colab + PesoNovedadConModelo * novedad,
+                        (true, null) => PesoAfinidad * afinidad + PesoCalidad * Calidad(c) + PesoNovedad * novedad,
+                        (false, double colab) => 0.5 * colab + 0.4 * Calidad(c) + 0.1 * novedad,
+                        // Sin gustos ni modelo: lo mejor calificado por los viajeros
+                        (false, null) => 0.85 * Calidad(c) + 0.15 * novedad
+                    };
+
+                    return new Puntuado(c, puntaje, afinidad, colaborativo);
                 })
                 .OrderByDescending(p => p.Puntaje)
                 .ThenBy(p => p.Municipio.Nombre)
@@ -326,8 +351,9 @@ namespace TurismoConecta.api.Services
 
             // Primero lo nuevo para el usuario; lo que ya conoce solo completa si faltan opciones
             var nuevos = puntuados.Where(p => !conocidos.Contains(p.Municipio.IdMunicipio)).ToList();
-            // Diversidad solo cuando hay gustos; sin gustos el orden es "mejor calificados" y se respeta tal cual
-            var elegidos = hayPerfil ? Diversificar(nuevos, cantidad) : nuevos.Take(cantidad).ToList();
+            // Diversidad solo cuando hay algo personal detrás; si no, el orden "mejor calificados" se respeta tal cual
+            var esPersonal = hayPerfil || puntuados.Any(p => p.Colaborativo.HasValue);
+            var elegidos = esPersonal ? Diversificar(nuevos, cantidad) : nuevos.Take(cantidad).ToList();
             elegidos.AddRange(puntuados
                 .Where(p => conocidos.Contains(p.Municipio.IdMunicipio))
                 .Take(cantidad - elegidos.Count));
@@ -377,6 +403,11 @@ namespace TurismoConecta.api.Services
 
             if (conocidos.Contains(m.IdMunicipio))
                 return ("Ya lo conoces: vale la pena volver", TiposRazon.Favorito);
+
+            // ML.NET pesa más que los gustos: viajeros parecidos a este usuario lo califican muy alto
+            if (puntuado.Colaborativo is double colab && colab >= ColaborativoMinimoRazon
+                && PesoColaborativo * colab > PesoAfinidadConModelo * puntuado.Afinidad)
+                return ("Viajeros con gustos como los tuyos lo califican alto", TiposRazon.Comunidad);
 
             // La etiqueta de este municipio que más pesa en los gustos del usuario
             var clave = m.Etiquetas.Keys

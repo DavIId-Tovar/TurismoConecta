@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TurismoConecta.api.DTOs.Recomendaciones;
 using TurismoConecta.api.Services.Interfaces;
+using TurismoConecta.api.Services.Recomendaciones;
+using TurismoConecta.api.Constants; 
 
 namespace TurismoConecta.api.Controllers
 {
@@ -62,5 +64,21 @@ namespace TurismoConecta.api.Controllers
                 .Where(id => id > 0)
                 .Distinct()
                 .ToList();
+
+        /// <summary>Estado del modelo colaborativo de ML.NET (panel del admin general).</summary>
+        [HttpGet("modelo")]
+        [Authorize(Roles = Roles.AdminGeneral)]
+        [ProducesResponseType(typeof(EstadoModeloDto), StatusCodes.Status200OK)]
+        public IActionResult EstadoModelo([FromServices] ModeloColaborativo modelo) => Ok(modelo.Estado);
+
+        /// <summary>Entrena el modelo ahora mismo, sin esperar al entrenamiento automático.</summary>
+        [HttpPost("modelo/entrenar")]
+        [Authorize(Roles = Roles.AdminGeneral)]
+        [ProducesResponseType(typeof(EstadoModeloDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> EntrenarModelo([FromServices] EntrenadorColaborativo entrenador, CancellationToken ct = default) =>
+            Ok(await entrenador.EntrenarAsync(ct));
+
+
+
     }
 }

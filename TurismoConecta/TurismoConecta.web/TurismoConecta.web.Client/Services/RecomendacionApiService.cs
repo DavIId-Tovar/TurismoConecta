@@ -52,6 +52,26 @@ namespace TurismoConecta.web.Client.Services
             }
         }
 
+        // ---- Panel del admin: estado y entrenamiento del modelo de ML.NET ----
+        public async Task<EstadoModeloDto?> ObtenerEstadoModeloAsync(CancellationToken ct = default)
+        {
+            try { return await _http.GetFromJsonAsync<EstadoModeloDto>("api/recomendaciones/modelo", ct); }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
+
+        public async Task<EstadoModeloDto?> EntrenarModeloAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var response = await _http.PostAsync("api/recomendaciones/modelo/entrenar", null, ct);
+                return response.IsSuccessStatusCode
+                    ? await response.Content.ReadFromJsonAsync<EstadoModeloDto>(cancellationToken: ct)
+                    : null;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
+
+
         private async Task<List<RecomendacionDto>?> ObtenerListaAsync(string url, CancellationToken ct)
         {
             try { return await _http.GetFromJsonAsync<List<RecomendacionDto>>(url, ct); }

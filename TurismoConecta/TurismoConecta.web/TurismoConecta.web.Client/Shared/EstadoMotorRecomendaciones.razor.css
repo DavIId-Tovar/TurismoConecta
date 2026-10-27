@@ -1,0 +1,204 @@
+.motor-card {
+    margin: 0 0 28px;
+    padding: 26px;
+    border: 1px solid #E5E0D8;
+    border-radius: 12px;
+    background: radial-gradient(circle at 100% 0%, rgba(226, 173, 99, 0.12), transparent 40%), #FFFFFF;
+    box-shadow: 0 6px 24px rgba(32, 41, 36, 0.03);
+    color: #1E2B25;
+}
+
+/* ---------- CABECERA ---------- */
+.motor-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.motor-titulo-grupo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.motor-icono {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #213B31;
+    color: #E2AD63;
+    font-size: 1.4rem;
+}
+
+.motor-titulo-grupo h3 {
+    margin: 0;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+}
+
+.motor-subtitulo {
+    color: #5A6961;
+    font-size: 0.85rem;
+}
+
+.motor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+    .motor-chip.activo {
+        background: #E3F1E6;
+        color: #23633A;
+    }
+
+    .motor-chip.reuniendo {
+        background: #FBF0DD;
+        color: #8A5A12;
+    }
+
+.motor-punto {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.motor-chip.activo .motor-punto {
+    animation: motor-latido 1.6s ease-in-out infinite;
+}
+
+/* ---------- CUERPO ---------- */
+.motor-texto {
+    margin: 16px 0 20px;
+    color: #5A6961;
+}
+
+    .motor-texto.error {
+        color: #9E3D2B;
+    }
+
+.motor-metricas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px 28px;
+}
+
+.motor-metrica-cabecera,
+.motor-dato {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 0.88rem;
+    color: #5A6961;
+}
+
+    .motor-metrica-cabecera strong,
+    .motor-dato strong {
+        color: #1E2B25;
+        font-size: 0.95rem;
+        white-space: nowrap;
+    }
+
+.motor-barra {
+    height: 8px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: #EDE9E1;
+    overflow: hidden;
+}
+
+.motor-barra-relleno {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #213B31, #4E8A5E);
+    transition: width 0.6s ease;
+}
+
+.motor-dato {
+    align-self: end;
+    padding-bottom: 2px;
+    border-bottom: 1px dashed #E5E0D8;
+}
+
+/* ---------- PIE ---------- */
+.motor-pie {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #EDE9E1;
+}
+
+.motor-ayuda {
+    color: #5A6961;
+    font-size: 0.82rem;
+}
+
+.motor-boton {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 8px;
+    background: #213B31;
+    color: #FFFFFF;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+    .motor-boton:hover:not(:disabled) {
+        background: #2E5243;
+    }
+
+    .motor-boton:disabled {
+        opacity: 0.7;
+        cursor: wait;
+    }
+
+.girando {
+    animation: motor-girar 0.9s linear infinite;
+}
+
+@keyframes motor-girar {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes motor-latido {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.35;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .girando,
+    .motor-chip.activo .motor-punto,
+    .motor-barra-relleno {
+        animation: none;
+        transition: none;
+    }
+}

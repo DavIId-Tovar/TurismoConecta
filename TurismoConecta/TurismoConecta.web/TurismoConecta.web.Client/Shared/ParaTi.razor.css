@@ -132,6 +132,28 @@
     }
 
 /* ---------- RESULTADOS ---------- */
+.para-ti-deshacer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid #D9A441;
+    border-radius: 999px;
+    background: transparent;
+    color: #D9A441;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    animation: para-ti-aparecer 0.3s ease-out both;
+}
+
+    .para-ti-deshacer:hover {
+        background: #D9A441;
+        color: #16301C;
+    }
+
+
 .para-ti-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

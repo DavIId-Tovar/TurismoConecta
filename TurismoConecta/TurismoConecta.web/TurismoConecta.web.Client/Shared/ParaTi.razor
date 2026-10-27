@@ -72,6 +72,12 @@
                     @aviso
                 </span>
             }
+            @if (respaldoLimpieza is not null)
+            {
+                <button type="button" class="para-ti-deshacer" @onclick="DeshacerLimpieza">
+                    <i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Deshacer
+                </button>
+            }
             @if (seleccion.Any())
             {
                 <button type="button" class="para-ti-limpiar" @onclick="LimpiarGustos">Limpiar gustos</button>
@@ -147,6 +153,9 @@
     private string? aviso;
     private bool avisoEsError;
 
+    // Los gustos que había antes de "Limpiar gustos", para poder deshacer
+    private List<int>? respaldoLimpieza;
+
     private System.Timers.Timer? _esperaCambios;
     private CancellationTokenSource? _ctsCarga;
 
@@ -194,6 +203,8 @@
     // ---- Gustos ----
     private void AlternarGusto(int idEtiqueta)
     {
+        respaldoLimpieza = null;
+
         if (!seleccion.Remove(idEtiqueta))
         {
             if (seleccion.Count >= MaximoGustos)
@@ -209,7 +220,17 @@
 
     private void LimpiarGustos()
     {
+        respaldoLimpieza = seleccion.ToList();
         seleccion.Clear();
+        ProgramarActualizacion();
+    }
+
+    private void DeshacerLimpieza()
+    {
+        if (respaldoLimpieza is null) return;
+
+        seleccion = respaldoLimpieza.ToHashSet();
+        respaldoLimpieza = null;
         ProgramarActualizacion();
     }
 
@@ -236,11 +257,12 @@
         if (!autenticado)
         {
             await GuardarGustosLocalesAsync(seleccion.ToList());
+            if (respaldoLimpieza is not null) MostrarAviso("Limpiaste tus gustos");
             return;
         }
 
         if (await RecoService.GuardarPreferenciasAsync(seleccion))
-            MostrarAviso("Gustos guardados");
+            MostrarAviso(respaldoLimpieza is not null ? "Limpiaste tus gustos" : "Gustos guardados");
         else
             MostrarAviso("No pudimos guardar tus gustos. Inténtalo de nuevo.", esError: true);
     }
