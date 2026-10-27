@@ -1,0 +1,257 @@
+.para-ti {
+    padding: 4.5rem 3rem;
+    background: radial-gradient(circle at 12% 0%, rgba(217, 164, 65, 0.16), transparent 45%), #16301C;
+    color: #F7F1E3;
+    scroll-margin-top: 80px;
+}
+
+/* ---------- CABECERA ---------- */
+.para-ti-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem 3rem;
+    margin-bottom: 2rem;
+}
+
+.para-ti-eyebrow {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #D9A441;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+.para-ti-cabecera h2 {
+    margin: 0;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: clamp(2.1rem, 4vw, 2.8rem);
+    line-height: 1.1;
+    color: #F7F1E3;
+}
+
+.para-ti-bajada {
+    max-width: 46ch;
+    margin: 0;
+    color: rgba(247, 241, 227, 0.78);
+    line-height: 1.6;
+}
+
+/* ---------- GUSTOS ---------- */
+.para-ti-gustos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+}
+
+.gusto-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.65rem 1.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    color: #F7F1E3;
+    font: inherit;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+    .gusto-chip:hover {
+        border-color: #D9A441;
+        transform: translateY(-2px);
+    }
+
+    .gusto-chip:focus-visible {
+        outline: 2px solid #D9A441;
+        outline-offset: 2px;
+    }
+
+    .gusto-chip.activo {
+        background: #D9A441;
+        border-color: #D9A441;
+        color: #16301C;
+        font-weight: 600;
+    }
+
+.gusto-chip-icono {
+    display: inline-flex;
+    font-size: 1.05rem;
+}
+
+.gusto-chip-esqueleto {
+    width: 130px;
+    height: 44px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    animation: para-ti-pulso 1.3s ease-in-out infinite;
+}
+
+.para-ti-estado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    min-height: 2.4rem;
+    margin: 0.9rem 0 1.6rem;
+}
+
+.para-ti-aviso {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #A9D8A0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    animation: para-ti-aparecer 0.3s ease-out both;
+}
+
+    .para-ti-aviso.error {
+        color: #F2A28C;
+    }
+
+.para-ti-limpiar {
+    padding: 0;
+    border: none;
+    background: none;
+    color: rgba(247, 241, 227, 0.75);
+    font: inherit;
+    font-size: 0.88rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+    .para-ti-limpiar:hover {
+        color: #D9A441;
+    }
+
+/* ---------- RESULTADOS ---------- */
+.para-ti-deshacer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid #D9A441;
+    border-radius: 999px;
+    background: transparent;
+    color: #D9A441;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    animation: para-ti-aparecer 0.3s ease-out both;
+}
+
+    .para-ti-deshacer:hover {
+        background: #D9A441;
+        color: #16301C;
+    }
+
+
+.para-ti-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.5rem;
+    transition: opacity 0.25s ease;
+}
+
+    /* Mientras recalcula, las tarjetas actuales se atenúan en vez de desaparecer */
+    .para-ti-grid.actualizando {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+.tarjeta-esqueleto {
+    height: 340px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.08);
+    animation: para-ti-pulso 1.3s ease-in-out infinite;
+}
+
+.para-ti-vacio {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: rgba(247, 241, 227, 0.8);
+}
+
+.para-ti-reintentar {
+    padding: 0.6rem 1.4rem;
+    border: 1px solid #D9A441;
+    border-radius: 999px;
+    background: transparent;
+    color: #D9A441;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+    .para-ti-reintentar:hover {
+        background: #D9A441;
+        color: #16301C;
+    }
+
+.para-ti-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 2.2rem 0 0;
+    color: rgba(247, 241, 227, 0.8);
+    font-size: 0.92rem;
+    text-align: center;
+}
+
+    .para-ti-cta a {
+        color: #D9A441;
+        font-weight: 700;
+    }
+
+@keyframes para-ti-pulso {
+    0%, 100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes para-ti-aparecer {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (max-width: 700px) {
+    .para-ti {
+        padding: 3.5rem 1.25rem;
+    }
+
+    .para-ti-cta {
+        align-items: flex-start;
+        text-align: left;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gusto-chip,
+    .para-ti-grid,
+    .gusto-chip-esqueleto,
+    .tarjeta-esqueleto,
+    .para-ti-aviso {
+        animation: none;
+        transition: none;
+    }
+}

@@ -1,0 +1,68 @@
+@* Tarjeta de un municipio recomendado: foto, coincidencia, estrellas y la razón ("Porque te gusta…") *@
+@inject ApiConfig Api
+
+<article class="reco-card">
+    <a href="@Url" class="reco-enlace">
+        <div class="reco-img">
+            <img src="@Api.ImagenMunicipio(Item.Nombre, Item.ImagenUrl)" alt="@Item.Nombre" loading="lazy"
+                 onerror="this.onerror=null; this.src='@ApiConfig.ImagenPorDefecto';" />
+
+            @if (MostrarCoincidencia && SaleDeTusGustos)
+            {
+                <span class="reco-coincidencia">@Item.Coincidencia% para ti</span>
+            }
+        </div>
+
+        <div class="reco-cuerpo">
+            <h3 class="reco-nombre">@Item.Nombre</h3>
+
+            <div class="reco-calificacion">
+                @if (Item.TotalResenas > 0)
+                {
+                    <EstrellasCalificacion Valor="@(Item.PromedioCalificacion ?? 0)" />
+                    <span>@Item.PromedioCalificacion?.ToString("0.0")</span>
+                    <span class="reco-total">(@Item.TotalResenas)</span>
+                }
+                else
+                {
+                    <span class="reco-total">Sin reseñas aún</span>
+                }
+            </div>
+
+            <p class="reco-razon reco-razon-@Item.TipoRazon">
+                <i class="@IconoRazon" aria-hidden="true"></i>
+                <span>@Item.Razon</span>
+            </p>
+        </div>
+    </a>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public RecomendacionDto Item { get; set; } = default!;
+
+    // El "% para ti" solo tiene sentido cuando hay gustos del usuario detrás
+    [Parameter] public bool MostrarCoincidencia { get; set; }
+
+    private bool SaleDeTusGustos => Item.Coincidencia > 0
+        && Item.TipoRazon is not (TiposRazon.Popular or TiposRazon.Nuevo);
+
+    // "inicio" → la ficha muestra "Volver al inicio" en vez de "Regresar al catálogo"
+    [Parameter] public string? Desde { get; set; }
+
+    private string Url => string.IsNullOrWhiteSpace(Desde)
+        ? $"/municipios/{Item.IdMunicipio}"
+        : $"/municipios/{Item.IdMunicipio}?desde={Desde}";
+
+    private string IconoRazon => Item.TipoRazon switch
+    {
+        TiposRazon.Gusto => "ph-fill ph-sparkle",
+        TiposRazon.Favorito => "ph-fill ph-heart",
+        TiposRazon.Calificado => "ph-fill ph-star",
+        TiposRazon.Itinerario => "ph-fill ph-map-trifold",
+        TiposRazon.Similar => "ph-fill ph-tag",
+        TiposRazon.Comunidad => "ph-fill ph-handshake",
+        TiposRazon.Joya => "ph-fill ph-diamond",
+        TiposRazon.Popular => "ph-fill ph-users-three",
+        _ => "ph-fill ph-compass"
+    };
+}

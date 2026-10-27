@@ -34,8 +34,8 @@
         <nav class="inicio-navigation" aria-label="Navegación principal">
             <a href="#quienes-somos">Quiénes somos</a>
             <a href="#donde-ir">Dónde ir</a>
-            <a href="#gustos">Gustos y preferencias</a>
-            <a href="#recomendaciones">Recomendaciones</a>
+            <a href="#gustos">Para ti</a>
+            <a href="#consejos">Consejos de viaje</a>
         </nav>
 
         @* ◆ CAMBIO 1 (ya lo tenías aplicado): íconos de la barra superior *@
@@ -314,78 +314,12 @@
             </a>
         </div>
 
-        <section class="gustos-section" id="gustos">
-            <div class="section-heading gustos-heading">
-                <div>
-                    <span class="section-eyebrow">
-                        Personaliza tu recorrido
-                    </span>
+        @* Recomendaciones personalizadas: gustos + "Elegidos para ti" *@
+        <ParaTi />
 
-                    <h2>
-                        ¿Qué te gusta?
-                    </h2>
-                </div>
-
-                <p>
-                    Elige una categoría y descubre municipios relacionados
-                    con tus intereses.
-                </p>
-            </div>
-
-            @if (cargandoEtiquetas)
-            {
-                <div class="gustos-grid">
-                    @for (var i = 0; i < 6; i++)
-                    {
-                        <div class="gusto-skeleton"></div>
-                    }
-                </div>
-            }
-            else if (etiquetas.Count == 0)
-            {
-                <p class="estado-vacio-oscuro">
-                    No hay categorías disponibles.
-                </p>
-            }
-            else
-            {
-                <div class="gustos-grid">
-                    @foreach (var etiqueta in etiquetas)
-                    {
-                        <button type="button"
-                                class="gusto-card"
-                                @onclick="() => FiltrarPorEtiqueta(etiqueta.IdEtiqueta)">
-
-                            @* ◆ CAMBIO 9: ícono de la etiqueta en negro (Phosphor o emoji en silueta) *@
-                            <span class="gusto-icono" aria-hidden="true">
-                                @if (EsClasePhosphor(etiqueta.Icono))
-                                {
-                                    <i class="@etiqueta.Icono"></i>
-                                }
-                                else if (!string.IsNullOrWhiteSpace(etiqueta.Icono))
-                                {
-                                    <span class="icono-silueta">@etiqueta.Icono</span>
-                                }
-                                else
-                                {
-                                    <i class="ph ph-sparkle"></i>
-                                }
-                            </span>
-
-                            <strong>@etiqueta.Nombre</strong>
-
-                            @* ◆ CAMBIO 10: flecha (antes ↗) *@
-                            <span class="gusto-flecha" aria-hidden="true">
-                                <i class="ph ph-arrow-up-right"></i>
-                            </span>
-                        </button>
-                    }
-                </div>
-            }
-        </section>
 
         <section class="recomendaciones-section"
-                 id="recomendaciones">
+                 id="consejos">
 
             <div class="recomendaciones-intro">
                 <span class="section-eyebrow">
@@ -393,7 +327,7 @@
                 </span>
 
                 <h2>
-                    Recomendaciones
+                    Consejos
                     <em>de viaje.</em>
                 </h2>
 
@@ -524,7 +458,7 @@
         <div class="footer-links">
             <a href="#quienes-somos">Quiénes somos</a>
             <a href="#donde-ir">Dónde ir</a>
-            <a href="#gustos">Preferencias</a>
+            <a href="#gustos">para ti</a>
             <a href="/itinerarios">Itinerarios</a>
         </div>
     </footer>
@@ -618,7 +552,6 @@
     private DotNetObjectReference<Inicio>? referenciaDotNet;
 
     private bool cargandoMunicipios = true;
-    private bool cargandoEtiquetas = true;
     private bool cargandoSitios = true;
 
     private int? totalMunicipios;
@@ -688,11 +621,6 @@
 
     private static string UrlMunicipio(int idMunicipio) => $"/municipios/{idMunicipio}?desde=inicio";
 
-    // ◆ CAMBIO 15b: nuevo ayudante para los íconos de las etiquetas (CAMBIO 9)
-    /// <summary>true si el ícono guardado es una clase de Phosphor ("ph ph-…", "ph-fill ph-…").</summary>
-    private static bool EsClasePhosphor(string? icono) =>
-        !string.IsNullOrWhiteSpace(icono) &&
-        icono.TrimStart().StartsWith("ph", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>"Ráquira " → "raquira": minúsculas, sin tildes y sin espacios en los extremos.</summary>
     private static string Normalizar(string? texto)
@@ -762,9 +690,9 @@
         }
     }
 
+    // Solo para el contador de categorías: los gustos ahora los maneja el componente <ParaTi />
     private async Task CargarEtiquetas()
     {
-        cargandoEtiquetas = true;
         try
         {
             var resultado = await EtiquetaService.ListarAsync();
@@ -774,10 +702,6 @@
         {
             Console.WriteLine($"[Inicio] Error cargando etiquetas: {ex.Message}");
             etiquetas = new();
-        }
-        finally
-        {
-            cargandoEtiquetas = false;
         }
     }
 
@@ -1082,10 +1006,7 @@
     [JSInvokable]
     public void AbrirMunicipioDesdeMapa(int idMunicipio) => Nav.NavigateTo(UrlMunicipio(idMunicipio));
 
-    // ════════════════════════════════════════════════
-    // 9. NAVEGACIÓN Y SESIÓN
-    // ════════════════════════════════════════════════
-    private void FiltrarPorEtiqueta(int idEtiqueta) => Nav.NavigateTo($"/municipios?idEtiqueta={idEtiqueta}");
+  
 
     private async Task IrAlDashboard()
     {

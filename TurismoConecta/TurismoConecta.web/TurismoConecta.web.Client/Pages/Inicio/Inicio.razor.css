@@ -789,60 +789,6 @@ h1, h2 {
         box-shadow: 0 12px 24px rgba(180,67,45,0.3);
     }
 
-/* ---------- GUSTOS ---------- */
-.gustos-section {
-    padding: 4rem 3rem;
-    background: #16301C;
-    color: #F7F1E3;
-}
-
-.gustos-heading h2 {
-    color: #F7F1E3;
-}
-
-.gustos-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.8rem;
-    margin-top: 2rem;
-}
-
-.gusto-card {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 999px;
-    padding: 0.7rem 1.3rem;
-    color: #F7F1E3;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-    .gusto-card:hover {
-        background: #D9A441;
-        color: #16301C;
-        border-color: #D9A441;
-        transform: translateY(-2px);
-    }
-
-.gusto-icono {
-    font-size: 1.1rem;
-}
-
-.gusto-flecha {
-    opacity: 0.6;
-    font-size: 0.8rem;
-}
-
-.gusto-skeleton {
-    width: 140px;
-    height: 44px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.08);
-    animation: pulso-carga 1.3s ease-in-out infinite;
-}
 
 @keyframes pulso-carga {
     0%, 100% {
@@ -854,10 +800,6 @@ h1, h2 {
     }
 }
 
-.estado-vacio-oscuro {
-    color: #C9C2AA;
-    margin-top: 1.5rem;
-}
 
 /* ---------- RECOMENDACIONES ---------- */
 .recomendaciones-section {
@@ -1258,18 +1200,6 @@ a.valor-card:hover .valor-enlace i {
     transition: opacity 0.3s ease;
 }
 
-.destino-frame:hover .destino-ver-detalle {
-    opacity: 1;
-}
-
-a.destino-cta {
-    color: inherit;
-    text-decoration: none;
-}
-
-    a.destino-cta:hover {
-        color: #bc3e29;
-    }
 
 /* ---------- MODAL: DETALLE DEL SITIO ---------- */
 .sitio-modal-fondo {
