@@ -1,0 +1,134 @@
+@* "Queda cerca": al armar un itinerario sugiere municipios cercanos a la última parada.
+   Excluye los que ya están en la ruta; con sesión también pesan los gustos del usuario. *@
+@implements IDisposable
+@inject RecomendacionApiService RecoService
+@inject ApiConfig Api
+
+@if (IdOrigen is not null && (cargando || sugerencias.Any()))
+{
+    <section class="cerca" aria-labelledby="cerca-titulo" aria-busy="@(cargando ? "true" : "false")">
+        <h4 id="cerca-titulo" class="cerca-titulo">
+            <i class="ph-fill ph-map-pin" aria-hidden="true"></i>
+            Queda cerca de @NombreOrigen
+        </h4>
+
+        <div class="cerca-lista">
+            @if (cargando && !sugerencias.Any())
+            {
+                @for (var i = 0; i < Cantidad; i++)
+                {
+                    <div class="cerca-esqueleto"></div>
+                }
+            }
+            else
+            {
+                @foreach (var s in sugerencias)
+                {
+                    var agregando = idAgregando == s.IdMunicipio;
+                    <div class="cerca-item @(cargando ? "actualizando" : "")" @key="s.IdMunicipio">
+                        <img src="@Api.ImagenMunicipio(s.Nombre, s.ImagenUrl)" alt="" loading="lazy"
+                             onerror="this.onerror=null; this.src='@ApiConfig.ImagenPorDefecto';" />
+
+                        <div class="cerca-info">
+                            <a href="/municipios/@s.IdMunicipio" target="_blank" class="cerca-nombre">@s.Nombre</a>
+                            <span class="cerca-distancia">
+                                @if (s.DistanciaKm is int km)
+                                {
+                                    <span>~@km km</span>
+                                }
+                                @if (s.TiempoEstimadoMin is int minutos)
+                                {
+                                    <span>· @Duracion(minutos)</span>
+                                }
+                                @if (s.TotalResenas > 0)
+                                {
+                                    <span class="cerca-estrellas">· ★ @s.PromedioCalificacion?.ToString("0.0")</span>
+                                }
+                            </span>
+                        </div>
+
+                        <button type="button" class="cerca-agregar" disabled="@agregando"
+                                aria-label="@($"Agregar {s.Nombre} a la ruta")"
+                                @onclick="() => Agregar(s.IdMunicipio)">
+                            @(agregando ? "…" : "+ Agregar")
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+
+        <p class="cerca-nota">Distancias aproximadas por carretera.</p>
+    </section>
+}
+
+@code {
+    private const int Cantidad = 4;
+
+    /// <summary>Municipio desde el que se buscan cercanos (la última parada). null = no hay ruta aún.</summary>
+    [Parameter] public int? IdOrigen { get; set; }
+    [Parameter] public string NombreOrigen { get; set; } = "";
+
+    /// <summary>Los municipios que ya están en la ruta: no se sugieren.</summary>
+    [Parameter] public IEnumerable<int> Excluir { get; set; } = Array.Empty<int>();
+
+    [Parameter] public EventCallback<int> OnAgregar { get; set; }
+
+    /// <summary>Súbelo para forzar una recarga aunque la ruta no cambie (ej. el usuario reincorporó un ocultado).</summary>
+    [Parameter] public int Version { get; set; }
+
+    private List<RecomendacionDto> sugerencias = new();
+    private bool cargando;
+    private int? idAgregando;
+    private string? ultimaConsulta;
+    private CancellationTokenSource? _cts;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Solo se consulta si cambió el origen o las paradas (el padre se repinta por muchas otras razones)
+        var excluir = Excluir.OrderBy(id => id).ToList();
+        var consulta = $"{IdOrigen}|{string.Join(",", excluir)}|{Version}";
+        if (consulta == ultimaConsulta) return;
+        ultimaConsulta = consulta;
+
+        _cts?.Cancel();
+
+        if (IdOrigen is not int origen)
+        {
+            sugerencias = new();
+            return;
+        }
+
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+        cargando = true;
+
+        var resultado = await RecoService.CercaAsync(origen, excluir, Cantidad, token);
+        if (token.IsCancellationRequested) return;
+
+        // Si el API falla, la sección simplemente no aparece: no bloquea el armado del itinerario
+        sugerencias = resultado ?? new();
+        cargando = false;
+    }
+
+    private async Task Agregar(int idMunicipio)
+    {
+        idAgregando = idMunicipio;
+        try
+        {
+            await OnAgregar.InvokeAsync(idMunicipio);
+        }
+        finally
+        {
+            idAgregando = null;
+        }
+    }
+
+    private static string Duracion(int minutos) =>
+        minutos < 60 ? $"{minutos} min" : $"{minutos / 60} h {minutos % 60:00} min";
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

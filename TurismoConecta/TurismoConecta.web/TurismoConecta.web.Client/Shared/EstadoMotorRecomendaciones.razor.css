@@ -88,6 +88,36 @@
         color: #9E3D2B;
     }
 
+    .motor-texto.aviso {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 0;
+        color: #9A6A10;
+        font-size: 0.88rem;
+    }
+
+/* ---------- USO DE LAS RECOMENDACIONES ---------- */
+.motor-subtitulo-seccion {
+    margin: 26px 0 14px;
+    padding-top: 18px;
+    border-top: 1px solid #E5E0D8;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1E2B25;
+}
+
+.motor-dato small {
+    color: #5A6961;
+    font-weight: 500;
+}
+
+/* La lista de "más ocultados" puede ser larga: se deja partir en varias líneas */
+.motor-metricas .motor-dato:last-child strong {
+    white-space: normal;
+    text-align: right;
+}
+
 .motor-metricas {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

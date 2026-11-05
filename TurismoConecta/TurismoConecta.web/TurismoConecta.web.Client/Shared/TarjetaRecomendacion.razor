@@ -35,6 +35,17 @@
             </p>
         </div>
     </a>
+
+    @* Fuera del enlace: el ✕ no debe abrir la ficha *@
+    @if (OnDescartar.HasDelegate)
+    {
+        <button type="button" class="reco-descartar"
+                title="No me interesa"
+                aria-label="@($"No me interesa {Item.Nombre}")"
+                @onclick="() => OnDescartar.InvokeAsync(Item)">
+            <i class="ph-bold ph-x" aria-hidden="true"></i>
+        </button>
+    }
 </article>
 
 @code {
@@ -42,6 +53,9 @@
 
     // El "% para ti" solo tiene sentido cuando hay gustos del usuario detrás
     [Parameter] public bool MostrarCoincidencia { get; set; }
+
+    // Si se pasa, aparece el botón ✕ "No me interesa" (solo con sesión: hay dónde guardarlo)
+    [Parameter] public EventCallback<RecomendacionDto> OnDescartar { get; set; }
 
     private bool SaleDeTusGustos => Item.Coincidencia > 0
         && Item.TipoRazon is not (TiposRazon.Popular or TiposRazon.Nuevo);
@@ -63,6 +77,7 @@
         TiposRazon.Comunidad => "ph-fill ph-handshake",
         TiposRazon.Joya => "ph-fill ph-diamond",
         TiposRazon.Popular => "ph-fill ph-users-three",
+        TiposRazon.Cerca => "ph-fill ph-map-pin",
         _ => "ph-fill ph-compass"
     };
 }

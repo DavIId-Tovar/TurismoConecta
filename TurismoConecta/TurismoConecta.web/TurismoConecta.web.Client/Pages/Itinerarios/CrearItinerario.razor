@@ -4,6 +4,7 @@
 @using TurismoConecta.web.Client.Services
 @inject ItinerarioApiService ItiApi
 @inject MunicipioApiService MuniApi
+@inject RecomendacionApiService RecoService
 @inject NavigationManager Nav
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
@@ -181,6 +182,20 @@
                                     @if (m.Etiquetas != null && m.Etiquetas.Any())
                                     {
                                         <span class="resultado-tags">@string.Join(" · ", m.Etiquetas.Take(2))</span>
+                                    }
+                                    @* Lo marcó "No me interesa": se puede agregar igual, o volver a recomendarlo *@
+                                    @if (idsOcultados.Contains(m.IdMunicipio))
+                                    {
+                                        <span class="resultado-oculto">
+                                            <i class="ph ph-eye-slash" aria-hidden="true"></i>
+                                            Lo ocultaste de tus recomendaciones
+                                            <button type="button" class="resultado-reincorporar"
+                                                    disabled="@(idReincorporando == m.IdMunicipio)"
+                                                    @onclick="() => ReincorporarAsync(m.IdMunicipio)"
+                                                    @onclick:stopPropagation="true">
+                                                @(idReincorporando == m.IdMunicipio ? "…" : "Volver a recomendar")
+                                            </button>
+                                        </span>
                                     }
                                 </div>
                                 @if (yaEnRuta)
@@ -405,6 +420,13 @@
                         </div>
                     }
 
+                    @* Recomendaciones: municipios cercanos a la última parada *@
+                    <SugerenciasCercanas IdOrigen="@municipiosSeleccionados.LastOrDefault()?.IdMunicipio"
+                                         NombreOrigen="@(municipiosSeleccionados.LastOrDefault()?.Nombre ?? "")"
+                                         Excluir="@municipiosSeleccionados.Select(m => m.IdMunicipio)"
+                                         OnAgregar="AgregarMunicipioDesdeModal"
+                                         Version="versionOcultados" />
+
                     <button type="button" class="btn-agregar-municipio" @onclick="AbrirModalAgregar">
                         <span class="btn-agregar-icono">＋</span>
                         Agregar más pueblos a la ruta
@@ -445,6 +467,11 @@
     private bool guardando = false;
     private bool usuarioAutenticado = true;
     private string? mensajeError;
+
+    // Municipios que el usuario marcó "No me interesa": en el buscador salen marcados, no escondidos
+    private HashSet<int> idsOcultados = new();
+    private int? idReincorporando;
+    private int versionOcultados;   // al cambiar, "Queda cerca" se recalcula
 
     // Fotos Wikipedia — respaldo cuando la API no tiene imagen
     private Dictionary<int, string> fotosWikipedia = new();
@@ -575,6 +602,13 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         usuarioAutenticado = authState.User.Identity?.IsAuthenticated ?? false;
 
+        if (usuarioAutenticado)
+        {
+            // Si falla, el buscador funciona igual, solo sin la marca de "ocultado"
+            var ocultados = await RecoService.ListarDescartadosAsync();
+            idsOcultados = ocultados?.Select(d => d.IdMunicipio).ToHashSet() ?? new();
+        }
+
         if (!string.IsNullOrEmpty(Municipios))
         {
             var ids = Municipios
@@ -669,6 +703,20 @@
             await BuscarMunicipiosParaAgregar();
         else
             await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Deshace el "No me interesa": el municipio vuelve a salir en recomendaciones y en "Queda cerca".</summary>
+    private async Task ReincorporarAsync(int idMunicipio)
+    {
+        idReincorporando = idMunicipio;
+
+        if (await RecoService.RestaurarAsync(idMunicipio))
+        {
+            idsOcultados.Remove(idMunicipio);
+            versionOcultados++;
+        }
+
+        idReincorporando = null;
     }
 
     // ──────────────────────────────────────────────────────────────

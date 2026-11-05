@@ -22,6 +22,42 @@ namespace TurismoConecta.web.Client.Services
         public Task<List<RecomendacionDto>?> SimilaresAsync(int idMunicipio, int cantidad = 4, CancellationToken ct = default) =>
             ObtenerListaAsync($"api/recomendaciones/similares/{idMunicipio}?cantidad={cantidad}", ct);
 
+        // "Queda cerca" de un municipio, sin repetir los que ya están en la ruta
+        public Task<List<RecomendacionDto>?> CercaAsync(int idMunicipio, IEnumerable<int> excluir, int cantidad = 4, CancellationToken ct = default)
+        {
+            var ids = string.Join(",", excluir);
+            var filtro = ids.Length > 0 ? $"&excluir={ids}" : "";
+            return ObtenerListaAsync($"api/recomendaciones/cerca/{idMunicipio}?cantidad={cantidad}{filtro}", ct);
+        }
+
+        // ---- "No me interesa" ----
+        public async Task<bool> DescartarAsync(int idMunicipio, CancellationToken ct = default)
+        {
+            try
+            {
+                var response = await _http.PostAsync($"api/recomendaciones/descartar/{idMunicipio}", null, ct);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return false; }
+        }
+
+        public async Task<bool> RestaurarAsync(int idMunicipio, CancellationToken ct = default)
+        {
+            try
+            {
+                var response = await _http.DeleteAsync($"api/recomendaciones/descartar/{idMunicipio}", ct);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return false; }
+        }
+
+        // null = no se pudo cargar
+        public async Task<List<MunicipioDescartadoDto>?> ListarDescartadosAsync(CancellationToken ct = default)
+        {
+            try { return await _http.GetFromJsonAsync<List<MunicipioDescartadoDto>>("api/recomendaciones/descartados", ct); }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
+
         public async Task<List<int>> ObtenerPreferenciasAsync(CancellationToken ct = default)
         {
             try
@@ -71,6 +107,11 @@ namespace TurismoConecta.web.Client.Services
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
         }
 
+        public async Task<MetricasRecomendacionesDto?> ObtenerMetricasAsync(CancellationToken ct = default)
+        {
+            try { return await _http.GetFromJsonAsync<MetricasRecomendacionesDto>("api/recomendaciones/metricas", ct); }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
 
         private async Task<List<RecomendacionDto>?> ObtenerListaAsync(string url, CancellationToken ct)
         {

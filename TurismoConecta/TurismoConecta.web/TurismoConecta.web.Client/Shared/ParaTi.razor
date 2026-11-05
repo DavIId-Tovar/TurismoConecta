@@ -114,11 +114,34 @@
             <div class="para-ti-grid @(cargandoRecomendaciones ? "actualizando" : "")">
                 @foreach (var recomendacion in recomendaciones)
                 {
-                    <TarjetaRecomendacion @key="recomendacion.IdMunicipio"
-                                          Item="recomendacion"
-                                          MostrarCoincidencia="true"
-                                          Desde="inicio" />
+                    @if (autenticado)
+                    {
+                        <TarjetaRecomendacion @key="recomendacion.IdMunicipio"
+                                              Item="recomendacion"
+                                              MostrarCoincidencia="true"
+                                              Desde="inicio"
+                                              OnDescartar="Descartar" />
+                    }
+                    else
+                    {
+                        <TarjetaRecomendacion @key="recomendacion.IdMunicipio"
+                                              Item="recomendacion"
+                                              MostrarCoincidencia="true"
+                                              Desde="inicio" />
+                    }
                 }
+            </div>
+        }
+
+        @* "No me interesa" con opción de deshacer *@
+        @if (ultimoDescartado is not null)
+        {
+            <div class="para-ti-descarte" role="status">
+                <i class="ph-fill ph-eye-slash" aria-hidden="true"></i>
+                <span>Ocultamos <strong>@ultimoDescartado.Nombre</strong>. No te lo volveremos a recomendar.</span>
+                <button type="button" class="para-ti-deshacer" @onclick="DeshacerDescarte">
+                    <i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Deshacer
+                </button>
             </div>
         }
     </div>
@@ -155,6 +178,9 @@
 
     // Los gustos que había antes de "Limpiar gustos", para poder deshacer
     private List<int>? respaldoLimpieza;
+
+    // El último municipio marcado "No me interesa", para poder deshacer
+    private RecomendacionDto? ultimoDescartado;
 
     private System.Timers.Timer? _esperaCambios;
     private CancellationTokenSource? _ctsCarga;
@@ -290,6 +316,38 @@
     }
 
     private Task Recargar() => CargarRecomendacionesAsync();
+
+    // ---- "No me interesa" ----
+    private async Task Descartar(RecomendacionDto item)
+    {
+        // Se quita de la pantalla al instante; si el API falla, vuelve a su lugar
+        var posicion = recomendaciones.IndexOf(item);
+        recomendaciones.Remove(item);
+        aviso = null;
+
+        if (!await RecoService.DescartarAsync(item.IdMunicipio))
+        {
+            recomendaciones.Insert(Math.Max(0, posicion), item);
+            MostrarAviso("No pudimos ocultar ese destino. Inténtalo de nuevo.", esError: true);
+            return;
+        }
+
+        ultimoDescartado = item;
+        await CargarRecomendacionesAsync();   // llega otra recomendación a ocupar el hueco
+    }
+
+    private async Task DeshacerDescarte()
+    {
+        if (ultimoDescartado is null) return;
+
+        var item = ultimoDescartado;
+        ultimoDescartado = null;
+
+        if (await RecoService.RestaurarAsync(item.IdMunicipio))
+            await CargarRecomendacionesAsync();
+        else
+            MostrarAviso("No pudimos deshacer. Puedes restaurarlo desde tu perfil.", esError: true);
+    }
 
     private void MostrarAviso(string texto, bool esError = false)
     {

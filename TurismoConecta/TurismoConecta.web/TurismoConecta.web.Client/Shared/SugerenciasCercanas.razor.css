@@ -1,0 +1,129 @@
+.cerca {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border: 1px dashed rgba(47, 93, 128, 0.35);
+    border-radius: 16px;
+    background: rgba(47, 93, 128, 0.05);
+}
+
+.cerca-titulo {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #2F5D80;
+}
+
+.cerca-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.cerca-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 12px;
+    background: #FFFDF8;
+    box-shadow: 0 2px 10px rgba(22, 48, 28, 0.08);
+    transition: opacity 0.2s ease;
+}
+
+    .cerca-item.actualizando {
+        opacity: 0.55;
+    }
+
+    .cerca-item img {
+        flex-shrink: 0;
+        width: 56px;
+        height: 56px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: #E7EEEA;
+    }
+
+.cerca-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.cerca-nombre {
+    overflow: hidden;
+    font-weight: 700;
+    color: #1C2B24;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+    .cerca-nombre:hover {
+        text-decoration: underline;
+    }
+
+.cerca-distancia {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: #6B7A72;
+}
+
+.cerca-estrellas {
+    color: #9A6A10;
+    font-weight: 600;
+}
+
+.cerca-agregar {
+    flex-shrink: 0;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #2E6B36;
+    border-radius: 999px;
+    background: transparent;
+    color: #2E6B36;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+    .cerca-agregar:hover:not(:disabled) {
+        background: #2E6B36;
+        color: #FFFDF8;
+    }
+
+    .cerca-agregar:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+.cerca-esqueleto {
+    height: 72px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #EEF2EF 25%, #F7F9F7 50%, #EEF2EF 75%);
+    background-size: 200% 100%;
+    animation: cerca-brillo 1.2s infinite;
+}
+
+.cerca-nota {
+    margin: 0.6rem 0 0;
+    font-size: 0.75rem;
+    color: #6B7A72;
+}
+
+@keyframes cerca-brillo {
+    to {
+        background-position: -200% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cerca-esqueleto {
+        animation: none;
+    }
+}
