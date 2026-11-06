@@ -12,6 +12,7 @@ namespace TurismoConecta.api.Services.Interfaces
         Task<NegocioResumenDto> ObtenerResumenAsync(int idAdminMunicipal); 
         Task<NegocioDto?> ObtenerFichaAsync(int idNegocio);
         Task<List<NegocioDto>> ListarMisNegociosAsync(int idUsuario);
+        Task<List<NegocioMapaDto>> ListarEnRutaAsync(List<int> idsMunicipios);
 
 
     }

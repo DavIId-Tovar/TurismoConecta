@@ -203,6 +203,21 @@
         </div>
 
         <div class="detalle-container">
+            @* MAPA DE LA RUTA *@
+            @if (itinerario.Paradas.Any())
+            {
+                <div class="seccion-card seccion-mapa">
+                    <div class="seccion-titulo-wrap">
+                        <span class="seccion-num"><i class="ph-fill ph-map-trifold" aria-hidden="true"></i></span>
+                        <div class="seccion-titulo-textos">
+                            <h2 class="seccion-titulo">Mapa de tu Ruta</h2>
+                            <span class="seccion-subtitulo">Distancias aproximadas por carretera · toca un pin para ver la parada</span>
+                        </div>
+                    </div>
+                    <MapaViaje Paradas="paradasMapa" />
+                </div>
+            }
+
             <div class="detalle-body-grid">
 
                 @* COLUMNA IZQUIERDA: PARADAS *@
@@ -412,6 +427,7 @@
     private bool cargando = true;
     private bool cambiandoCompartir = false;
     private Dictionary<int, List<NegocioResumenDto>> hotelesPorMunicipio = new();
+    private List<ParadaMapa> paradasMapa = new();   // mapa de la ruta
 
     // Modal de información del municipio
     private MunicipioFichaDto? municipioModal;
@@ -422,6 +438,7 @@
     {
         cargando = true;
         itinerario = await ApiService.ObtenerDetalleAsync(Id);
+        if (itinerario is not null) paradasMapa = ParadaMapa.DeItinerario(itinerario);
 
         if (itinerario?.Paradas != null && itinerario.Paradas.Any())
         {

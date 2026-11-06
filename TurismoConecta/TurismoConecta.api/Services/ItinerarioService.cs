@@ -11,11 +11,62 @@ namespace TurismoConecta.api.Services
     {
         private readonly AppDbContext _db;
         private readonly ILogger<ItinerarioService> _logger;
+        private readonly IRecomendacionService _recomendaciones;
 
-        public ItinerarioService(AppDbContext db, ILogger<ItinerarioService> logger)
+        public ItinerarioService(AppDbContext db, ILogger<ItinerarioService> logger, IRecomendacionService recomendaciones)
         {
             _db = db;
             _logger = logger;
+            _recomendaciones = recomendaciones;
+        }
+
+        /// <summary>
+        /// Km y minutos estimados desde la parada anterior (mismo cálculo que el resumen de Crear itinerario).
+        /// Si la estimación falla, el itinerario se guarda igual, solo sin tramos.
+        /// </summary>
+        private async Task AsignarTramosAsync(ICollection<ItinerarioDetalle> paradas)
+        {
+            var enOrden = paradas.OrderBy(p => p.DiaNumero).ThenBy(p => p.Orden).ToList();
+
+            try
+            {
+                var ruta = await _recomendaciones.EstimarRutaAsync(enOrden.Select(p => p.IdMunicipio).ToList(), optimizar: false);
+
+                // Un tramo por parada y en el mismo orden (los municipios ya se validaron como activos)
+                foreach (var (parada, tramo) in enOrden.Zip(ruta.Tramos))
+                {
+                    if (parada.IdMunicipio != tramo.IdMunicipio) continue;
+                    parada.DistanciaKm = tramo.KmDesdeAnterior;
+                    parada.TiempoEstimadoMin = tramo.MinutosDesdeAnterior;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudieron estimar los tramos del itinerario");
+            }
+        }
+
+        /// <summary>Itinerarios guardados antes de calcular tramos: se completan al leerlos (sin tocar la BD).</summary>
+        private async Task<ItinerarioResponseDto> CompletarTramosAsync(ItinerarioResponseDto dto)
+        {
+            if (dto.Paradas.Count < 2 || dto.Paradas.Skip(1).All(p => p.DistanciaKm is not null)) return dto;
+
+            try
+            {
+                var ruta = await _recomendaciones.EstimarRutaAsync(dto.Paradas.Select(p => p.IdMunicipio).ToList(), optimizar: false);
+                foreach (var (parada, tramo) in dto.Paradas.Zip(ruta.Tramos))
+                {
+                    if (parada.IdMunicipio != tramo.IdMunicipio || parada.DistanciaKm is not null) continue;
+                    parada.DistanciaKm = tramo.KmDesdeAnterior;
+                    parada.TiempoEstimadoMin = tramo.MinutosDesdeAnterior;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudieron completar los tramos del itinerario {IdItinerario}", dto.IdItinerario);
+            }
+
+            return dto;
         }
 
         public async Task<List<ItinerarioListadoDto>> ListarPorUsuarioAsync(int idUsuario)
@@ -41,7 +92,7 @@ namespace TurismoConecta.api.Services
                     .ThenInclude(d => d.IdMunicipioNavigation)
                 .FirstOrDefaultAsync(i => i.IdItinerario == idItinerario && i.IdUsuario == idUsuario);
 
-            return itinerario is null ? null : MapearAResponse(itinerario);
+            return itinerario is null ? null : await CompletarTramosAsync(MapearAResponse(itinerario));
         }
 
         public async Task<ItinerarioResponseDto?> ObtenerPorCodigoCompartirAsync(Guid codigo)
@@ -51,7 +102,7 @@ namespace TurismoConecta.api.Services
                     .ThenInclude(d => d.IdMunicipioNavigation)
                 .FirstOrDefaultAsync(i => i.CodigoCompartir == codigo && i.Compartido);
 
-            return itinerario is null ? null : MapearAResponse(itinerario);
+            return itinerario is null ? null : await CompletarTramosAsync(MapearAResponse(itinerario));
         }
 
         public async Task<(bool exito, string? error, ItinerarioResponseDto? itinerario)> CrearAsync(int idUsuario, ItinerarioCreateDto dto)
@@ -89,6 +140,8 @@ namespace TurismoConecta.api.Services
                         FechaVisita = parada.FechaVisita
                     });
                 }
+
+                await AsignarTramosAsync(nuevoItinerario.ItinerarioDetalles);
 
                 _db.Itinerarios.Add(nuevoItinerario);
                 await _db.SaveChangesAsync();
@@ -172,6 +225,8 @@ namespace TurismoConecta.api.Services
                 });
             }
 
+            await AsignarTramosAsync(itinerario.ItinerarioDetalles.Where(d => d.IdItinerarioDetalle == 0).ToList());
+
             await _db.SaveChangesAsync();
 
             // 5. Recargamos con navegaciones para poder mapear el DTO de respuesta
@@ -229,7 +284,9 @@ namespace TurismoConecta.api.Services
                         Orden = d.Orden,
                         FechaVisita = d.FechaVisita,
                         DistanciaKm = d.DistanciaKm,
-                        TiempoEstimadoMin = d.TiempoEstimadoMin
+                        TiempoEstimadoMin = d.TiempoEstimadoMin,
+                        Latitud = (double?)d.IdMunicipioNavigation?.Latitud,
+                        Longitud = (double?)d.IdMunicipioNavigation?.Longitud
                     }).ToList()
             };
         }

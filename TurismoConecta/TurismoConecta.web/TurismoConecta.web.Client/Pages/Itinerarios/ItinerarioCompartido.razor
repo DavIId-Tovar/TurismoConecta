@@ -134,6 +134,15 @@
                 </div>
             }
 
+            @* MAPA DE LA RUTA *@
+            @if (itinerario.Paradas.Any())
+            {
+                <div class="compartido-seccion">
+                    <span class="compartido-seccion-label">Mapa de la Ruta</span>
+                    <MapaViaje Paradas="paradasMapa" />
+                </div>
+            }
+
             @* RUTA DESGLOSADA DÍA A DÍA CON COMERCIOS *@
             <div class="compartido-seccion">
                 <span class="compartido-seccion-label">Ruta Paso a Paso y Recomendaciones Locales</span>
@@ -256,11 +265,13 @@
     private bool cargando = true;
     private bool enlaceCopiado = false;
     private Dictionary<int, List<NegocioResumenDto>> negociosPorMunicipio = new();
+    private List<ParadaMapa> paradasMapa = new();   // mapa de la ruta
 
     protected override async Task OnInitializedAsync()
     {
         cargando = true;
         itinerario = await ItinerarioService.ObtenerCompartidoAsync(Codigo);
+        if (itinerario is not null) paradasMapa = ParadaMapa.DeItinerario(itinerario);
 
         if (itinerario != null && itinerario.Paradas.Any())
         {

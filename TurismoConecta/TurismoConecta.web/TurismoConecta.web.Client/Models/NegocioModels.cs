@@ -83,6 +83,21 @@ namespace TurismoConecta.web.Client.Models
     }
 
 
+    // Capa "Dónde dormir / comer" del mapa de viaje (api/negocios/en-ruta)
+    public class NegocioMapaDto
+    {
+        public int IdNegocio { get; set; }
+        public string Nombre { get; set; } = "";
+        public int IdMunicipio { get; set; }
+        public string NombreMunicipio { get; set; } = "";
+        public int IdCategoria { get; set; }
+        public string Categoria { get; set; } = "";
+        public string? IconoCategoria { get; set; }
+        public string? ImagenUrl { get; set; }
+        public double Latitud { get; set; }
+        public double Longitud { get; set; }
+    }
+
     public class CategoriaDto
     {
         public int IdCategoria { get; set; }

@@ -1,0 +1,162 @@
+.mapa-viaje {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mapa-resumen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    font-size: 0.88rem;
+    color: #5A6961;
+}
+
+    .mapa-resumen strong {
+        color: #213B31;
+    }
+
+.mapa-viaje-lienzo {
+    width: 100%;
+    height: 380px;
+    border: 1px solid #E5E0D8;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #E7EEEA;
+    /* Leaflet crea sus capas con z-index altos: se encierran para no tapar modales ni menús */
+    isolation: isolate;
+    z-index: 0;
+}
+
+.compacto .mapa-viaje-lienzo {
+    height: 240px;
+}
+
+@media (max-width: 600px) {
+    .mapa-viaje-lienzo {
+        height: 300px;
+    }
+}
+
+.mapa-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.8rem;
+    color: #9A6A10;
+}
+
+    .mapa-aviso.error {
+        color: #B4432D;
+    }
+
+/* ---------- Salir a la carretera ---------- */
+.mapa-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.mapa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border: 1px solid #213B31;
+    border-radius: 999px;
+    background: #213B31;
+    color: #FFFDF8;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+    .mapa-btn:hover {
+        background: #2E5444;
+        color: #FFFDF8;
+        transform: translateY(-1px);
+    }
+
+    .mapa-btn:focus-visible {
+        outline: 3px solid #E0A94D;
+        outline-offset: 2px;
+    }
+
+    .mapa-btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+.mapa-btn-claro {
+    background: transparent;
+    color: #213B31;
+}
+
+    .mapa-btn-claro:hover {
+        background: #F4EFEA;
+        color: #213B31;
+    }
+
+.compacto .mapa-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+}
+
+/* ---------- Capa de negocios ---------- */
+.mapa-capas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.mapa-capas-titulo {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #5A6961;
+}
+
+.mapa-capa {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid #E5E0D8;
+    border-radius: 999px;
+    background: #fff;
+    color: #9E5B3D;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+    .mapa-capa:hover {
+        border-color: #9E5B3D;
+    }
+
+    .mapa-capa.activa {
+        border-color: #9E5B3D;
+        background: #9E5B3D;
+        color: #fff;
+    }
+
+.mapa-capa-total {
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(158, 91, 61, 0.12);
+    font-size: 0.7rem;
+}
+
+.mapa-capa.activa .mapa-capa-total {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mapa-btn {
+        transition: none;
+    }
+}

@@ -134,6 +134,10 @@ namespace TurismoConecta.web.Client.Services
         public DateOnly? FechaVisita { get; set; }
         public decimal? DistanciaKm { get; set; }
         public int? TiempoEstimadoMin { get; set; }
+
+        // Pin de la parada en el mapa de viaje (null si el municipio no tiene ubicación)
+        public double? Latitud { get; set; }
+        public double? Longitud { get; set; }
     }
 
     public class ItinerarioDetalleDto

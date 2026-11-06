@@ -59,6 +59,22 @@ namespace TurismoConecta.api.Controllers
         public async Task<IActionResult> PorMunicipio(int idMunicipio, [FromQuery] int? idCategoria) =>
             Ok(await _negocioService.ListarPorMunicipioAsync(idMunicipio, idCategoria));
 
+        /// <summary>Mapa de viaje: negocios aprobados con ubicación en los municipios de la ruta ("2,1,4").</summary>
+        [HttpGet("en-ruta")]
+        [AllowAnonymous]
+        public async Task<IActionResult> EnRuta([FromQuery] string? municipios)
+        {
+            var ids = (municipios ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => int.TryParse(s, out var id) ? id : 0)
+                .Where(id => id > 0)
+                .Distinct()
+                .Take(30)
+                .ToList();
+
+            return Ok(await _negocioService.ListarEnRutaAsync(ids));
+        }
+
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> Ficha(int id)

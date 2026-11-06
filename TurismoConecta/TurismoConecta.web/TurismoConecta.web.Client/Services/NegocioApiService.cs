@@ -160,6 +160,22 @@ namespace TurismoConecta.web.Client.Services
             }
         }
 
+        // Mapa de viaje: negocios aprobados con ubicación en los municipios de la ruta. Lista vacía si falla
+        public async Task<List<NegocioMapaDto>> ListarEnRutaAsync(IEnumerable<int> idsMunicipios, CancellationToken ct = default)
+        {
+            var ids = string.Join(",", idsMunicipios);
+            if (ids.Length == 0) return new();
+
+            try
+            {
+                return await _http.GetFromJsonAsync<List<NegocioMapaDto>>($"api/negocios/en-ruta?municipios={ids}", ct) ?? new();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                return new();
+            }
+        }
+
         public async Task<List<CategoriaDto>> ListarCategoriasAsync(CancellationToken ct = default)
         {
             try
