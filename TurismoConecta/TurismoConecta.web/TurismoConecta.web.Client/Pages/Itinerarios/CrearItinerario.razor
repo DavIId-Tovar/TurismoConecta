@@ -543,6 +543,14 @@
                         </div>
                     }
 
+                    @* Vista previa del mapa: se actualiza al agregar, quitar o reordenar paradas *@
+                    @if (municipiosSeleccionados.Any())
+                    {
+                        <div class="mapa-previa">
+                            <MapaViaje Paradas="ParadasVistaPrevia" Compacto="true" />
+                        </div>
+                    }
+
                     @* Recomendaciones: municipios cercanos a la última parada *@
                     <SugerenciasCercanas IdOrigen="@municipiosSeleccionados.LastOrDefault()?.IdMunicipio"
                                          NombreOrigen="@(municipiosSeleccionados.LastOrDefault()?.Nombre ?? "")"
@@ -641,6 +649,19 @@
 
     private TramoRutaDto? TramoDe(int idMunicipio) =>
         rutaEstimada?.Tramos.FirstOrDefault(t => t.IdMunicipio == idMunicipio);
+
+    // Paradas para la vista previa del mapa (una por día, con el tramo ya calculado)
+    private List<ParadaMapa> ParadasVistaPrevia => municipiosSeleccionados
+        .Select((m, i) => new ParadaMapa(
+            m.IdMunicipio,
+            m.Nombre,
+            i + 1,
+            (double?)m.Latitud,
+            (double?)m.Longitud,
+            m.ImagenUrl,
+            TramoDe(m.IdMunicipio)?.KmDesdeAnterior,
+            TramoDe(m.IdMunicipio)?.MinutosDesdeAnterior))
+        .ToList();
 
     // Fotos Wikipedia — respaldo cuando la API no tiene imagen
     private Dictionary<int, string> fotosWikipedia = new();

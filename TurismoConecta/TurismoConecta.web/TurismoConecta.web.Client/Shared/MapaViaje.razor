@@ -1,0 +1,276 @@
+@* Mapa de viaje del itinerario: pines numerados por parada, línea de la ruta (estimada, en línea recta),
+   capa "Dónde dormir / comer", salir con Google Maps o Waze y "Estoy aquí".
+   Lo usan Crear itinerario (vista previa compacta), el detalle y el itinerario compartido. *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject NegocioApiService NegocioService
+@inject ApiConfig Api
+
+<section class="mapa-viaje @(Compacto ? "compacto" : "")" aria-label="Mapa de la ruta">
+
+    @if (!Compacto && ConUbicacion.Any())
+    {
+        <div class="mapa-resumen">
+            <span><strong>@Paradas.Count</strong> parada@(Paradas.Count != 1 ? "s" : "")</span>
+            @if (KmTotal > 0)
+            {
+                <span>· <strong>~@KmTotal km</strong></span>
+                <span>· <strong>@Duracion(MinutosTotal)</strong> de carretera</span>
+            }
+        </div>
+    }
+
+    <div id="@idMapa" class="mapa-viaje-lienzo"></div>
+
+    @if (!ConUbicacion.Any())
+    {
+        <p class="mapa-aviso"><i class="ph ph-map-trifold" aria-hidden="true"></i> Agrega paradas para ver tu ruta en el mapa.</p>
+    }
+    else
+    {
+        @if (SinUbicacion.Any())
+        {
+            <p class="mapa-aviso">
+                <i class="ph ph-info" aria-hidden="true"></i>
+                Sin ubicación registrada, no aparecen en el mapa: @string.Join(", ", SinUbicacion.Select(p => p.Nombre))
+            </p>
+        }
+
+        @* ===== Salir a la carretera ===== *@
+        <div class="mapa-acciones">
+            <a href="@UrlGoogleMaps" target="_blank" rel="noopener" class="mapa-btn">
+                <i class="ph-fill ph-google-logo" aria-hidden="true"></i> Abrir ruta en Google Maps
+            </a>
+            @if (SiguienteParada is ParadaMapa siguiente)
+            {
+                <a href="@UrlWaze(siguiente)" target="_blank" rel="noopener" class="mapa-btn">
+                    <i class="ph-fill ph-navigation-arrow" aria-hidden="true"></i> Ir con Waze a @siguiente.Nombre
+                </a>
+            }
+            <button type="button" class="mapa-btn mapa-btn-claro" disabled="@buscandoUbicacion" @onclick="EstoyAquiAsync">
+                <i class="ph-fill ph-crosshair" aria-hidden="true"></i>
+                @(buscandoUbicacion ? "Buscando…" : "Estoy aquí")
+            </button>
+        </div>
+
+        @if (mensajeUbicacion is not null)
+        {
+            <p class="mapa-aviso @(ubicacionConError ? "error" : "")" role="status">
+                <i class="@(ubicacionConError ? "ph ph-warning-circle" : "ph-fill ph-person-simple-walk")" aria-hidden="true"></i>
+                @mensajeUbicacion
+            </p>
+        }
+
+        @* ===== Capa de negocios ===== *@
+        @if (!Compacto && categorias.Any())
+        {
+            <div class="mapa-capas" role="group" aria-label="Mostrar en el mapa">
+                <span class="mapa-capas-titulo">Mostrar en el mapa:</span>
+                @foreach (var c in categorias)
+                {
+                    var activa = categoriasActivas.Contains(c.IdCategoria);
+                    <button type="button" class="mapa-capa @(activa ? "activa" : "")"
+                            aria-pressed="@(activa ? "true" : "false")"
+                            @onclick="() => AlternarCategoriaAsync(c.IdCategoria)">
+                        <i class="@(EsClasePhosphor(c.Icono) ? c.Icono : "ph ph-storefront")" aria-hidden="true"></i>
+                        @c.Nombre <span class="mapa-capa-total">@c.Total</span>
+                    </button>
+                }
+            </div>
+        }
+    }
+</section>
+
+@code {
+    /// <summary>Paradas en el orden de la ruta. Las que no tienen ubicación se avisan pero no se dibujan.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<ParadaMapa> Paradas { get; set; } = Array.Empty<ParadaMapa>();
+
+    /// <summary>Vista previa (Crear itinerario): mapa más bajo, sin resumen ni capa de negocios.</summary>
+    [Parameter] public bool Compacto { get; set; }
+
+    private readonly string idMapa = $"mapa-viaje-{Guid.NewGuid():N}";
+    private string? firmaDibujada;
+    private string? firmaNegocios;
+    private bool jsListo;
+
+    private List<NegocioMapaDto> negocios = new();
+    private List<(int IdCategoria, string Nombre, string? Icono, int Total)> categorias = new();
+    private HashSet<int> categoriasActivas = new();
+
+    private bool buscandoUbicacion;
+    private string? mensajeUbicacion;
+    private bool ubicacionConError;
+    private (double Lat, double Lng)? miUbicacion;
+
+    private List<ParadaMapa> ConUbicacion => Paradas.Where(p => p.TieneUbicacion).ToList();
+    private List<ParadaMapa> SinUbicacion => Paradas.Where(p => !p.TieneUbicacion).ToList();
+    private int KmTotal => Paradas.Sum(p => p.KmDesdeAnterior ?? 0);
+    private int MinutosTotal => Paradas.Sum(p => p.MinutosDesdeAnterior ?? 0);
+
+    // Waze solo acepta un destino: la parada más cercana si ya sabemos dónde está, si no la primera
+    private ParadaMapa? SiguienteParada => miUbicacion is (double lat, double lng)
+        ? ConUbicacion.MinBy(p => DistanciaKm(lat, lng, p.Latitud!.Value, p.Longitud!.Value))
+        : ConUbicacion.FirstOrDefault();
+
+    /// <summary>Google Maps arma la ruta completa: última parada como destino, el resto como paradas intermedias (máx. 9).</summary>
+    private string UrlGoogleMaps
+    {
+        get
+        {
+            var puntos = ConUbicacion.Select(Coordenadas).ToList();
+            if (puntos.Count == 0) return "#";
+
+            var url = $"https://www.google.com/maps/dir/?api=1&travelmode=driving&destination={puntos[^1]}";
+            var intermedias = puntos.Take(puntos.Count - 1).Take(9).ToList();
+            return intermedias.Any() ? $"{url}&waypoints={Uri.EscapeDataString(string.Join("|", intermedias))}" : url;
+        }
+    }
+
+    private static string UrlWaze(ParadaMapa p) => $"https://waze.com/ul?ll={Coordenadas(p)}&navigate=yes";
+
+    private static string Coordenadas(ParadaMapa p) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{p.Latitud:0.######},{p.Longitud:0.######}");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // La capa de negocios solo se vuelve a pedir si cambian los municipios de la ruta
+        var firma = string.Join(",", Paradas.Select(p => p.IdMunicipio).Distinct().OrderBy(id => id));
+        if (Compacto || firma == firmaNegocios) return;
+        firmaNegocios = firma;
+
+        negocios = await NegocioService.ListarEnRutaAsync(Paradas.Select(p => p.IdMunicipio).Distinct());
+        categorias = negocios
+            .GroupBy(n => n.IdCategoria)
+            .Select(g => (g.Key, g.First().Categoria, g.First().IconoCategoria, g.Count()))
+            .OrderBy(c => c.Item2)
+            .ToList();
+
+        // Las categorías que ya no tienen negocios en la ruta dejan de estar activas
+        categoriasActivas.RemoveWhere(id => categorias.All(c => c.IdCategoria != id));
+        if (jsListo) await PintarNegociosAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Se redibuja solo si cambió algo de la ruta (orden, paradas o tramos)
+        var firma = string.Join("|", Paradas.Select(p => $"{p.IdMunicipio}:{p.Latitud}:{p.Longitud}:{p.KmDesdeAnterior}"));
+        if (firma == firmaDibujada && !firstRender) return;
+        firmaDibujada = firma;
+
+        try
+        {
+            await JS.InvokeVoidAsync("mapaViaje.dibujar", idMapa, DatosParaJs());
+            jsListo = true;
+            if (firstRender) await PintarNegociosAsync();
+        }
+        catch (JSException)
+        {
+            // Leaflet no cargó (sin internet): la página sigue funcionando sin mapa
+        }
+    }
+
+    private object[] DatosParaJs()
+    {
+        var conUbicacion = ConUbicacion;
+        return conUbicacion.Select((p, i) => (object)new
+        {
+            numero = Paradas.ToList().IndexOf(p) + 1,
+            dia = p.Dia,
+            idMunicipio = p.IdMunicipio,
+            nombre = p.Nombre,
+            lat = p.Latitud,
+            lng = p.Longitud,
+            imagenUrl = Api.ImagenMunicipio(p.Nombre, p.ImagenUrl),
+            // El tramo se muestra desde la parada anterior que sí está en el mapa
+            kmDesdeAnterior = i == 0 ? null : p.KmDesdeAnterior,
+            duracion = Duracion(p.MinutosDesdeAnterior ?? 0),
+            desdeNombre = i == 0 ? null : conUbicacion[i - 1].Nombre
+        }).ToArray();
+    }
+
+    private async Task AlternarCategoriaAsync(int idCategoria)
+    {
+        if (!categoriasActivas.Remove(idCategoria)) categoriasActivas.Add(idCategoria);
+        await PintarNegociosAsync();
+    }
+
+    private async Task PintarNegociosAsync()
+    {
+        var visibles = negocios
+            .Where(n => categoriasActivas.Contains(n.IdCategoria))
+            .Select(n => new
+            {
+                idMunicipio = n.IdMunicipio,
+                nombre = n.Nombre,
+                categoria = n.Categoria,
+                iconoCategoria = n.IconoCategoria,
+                nombreMunicipio = n.NombreMunicipio,
+                lat = n.Latitud,
+                lng = n.Longitud
+            })
+            .ToArray();
+
+        try { await JS.InvokeVoidAsync("mapaViaje.negocios", idMapa, visibles); }
+        catch (JSException) { }
+    }
+
+    private sealed record ResultadoUbicacion(double? Lat, double? Lng, string? Error);
+
+    private async Task EstoyAquiAsync()
+    {
+        buscandoUbicacion = true;
+        mensajeUbicacion = null;
+
+        try
+        {
+            var r = await JS.InvokeAsync<ResultadoUbicacion>("mapaViaje.miUbicacion", idMapa);
+
+            if (r.Error is not null || r.Lat is not double lat || r.Lng is not double lng)
+            {
+                ubicacionConError = true;
+                mensajeUbicacion = r.Error ?? "No pudimos obtener tu ubicación.";
+                return;
+            }
+
+            // No se guarda en ningún lado: solo sirve para esta pantalla
+            miUbicacion = (lat, lng);
+            ubicacionConError = false;
+
+            var cercana = SiguienteParada!;
+            var km = DistanciaKm(lat, lng, cercana.Latitud!.Value, cercana.Longitud!.Value);
+            mensajeUbicacion = km < 2
+                ? $"¡Estás en {cercana.Nombre}!"
+                : $"Estás a ~{Math.Round(km)} km en línea recta de {cercana.Nombre}, la parada más cercana.";
+        }
+        catch (JSException)
+        {
+            ubicacionConError = true;
+            mensajeUbicacion = "No pudimos obtener tu ubicación.";
+        }
+        finally
+        {
+            buscandoUbicacion = false;
+        }
+    }
+
+    /// <summary>Distancia en línea recta (Haversine), en km.</summary>
+    private static double DistanciaKm(double lat1, double lng1, double lat2, double lng2)
+    {
+        static double Rad(double g) => g * Math.PI / 180;
+        var h = Math.Pow(Math.Sin(Rad(lat2 - lat1) / 2), 2)
+              + Math.Cos(Rad(lat1)) * Math.Cos(Rad(lat2)) * Math.Pow(Math.Sin(Rad(lng2 - lng1) / 2), 2);
+        return 2 * 6371 * Math.Asin(Math.Sqrt(h));
+    }
+
+    private static string Duracion(int minutos) =>
+        minutos < 60 ? $"{minutos} min" : $"{minutos / 60} h {minutos % 60:00} min";
+
+    private static bool EsClasePhosphor(string? icono) =>
+        !string.IsNullOrWhiteSpace(icono) && icono.TrimStart().StartsWith("ph", StringComparison.OrdinalIgnoreCase);
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("mapaViaje.destruir", idMapa); }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { }
+    }
+}

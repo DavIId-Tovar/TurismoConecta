@@ -111,6 +111,12 @@
     box-shadow: 0 2px 12px rgba(0,0,0,.03);
 }
 
+/* El mapa ocupa todo el ancho, arriba de las dos columnas */
+.seccion-mapa .seccion-num i {
+    font-size: 1rem;
+    vertical-align: -2px;
+}
+
 .seccion-titulo-wrap {
     display: flex;
     align-items: center;

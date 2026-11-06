@@ -159,6 +159,48 @@ namespace TurismoConecta.api.Services
             return negocios.Select(n => NegocioMapper.ToDto(n)).ToList();
         }
 
+        /// <summary>Negocios aprobados con ubicación en los municipios de una ruta (capa del mapa de viaje).</summary>
+        public async Task<List<NegocioMapaDto>> ListarEnRutaAsync(List<int> idsMunicipios)
+        {
+            if (idsMunicipios.Count == 0) return new List<NegocioMapaDto>();
+
+            var negocios = await _context.Negocios
+                .AsNoTracking()
+                .Where(n => idsMunicipios.Contains(n.IdMunicipio)
+                            && n.Estado == EstadosNegocio.Aprobado
+                            && n.Latitud != null && n.Longitud != null
+                            && n.Latitud != 0 && n.Longitud != 0)
+                .OrderBy(n => n.Nombre)
+                .Select(n => new
+                {
+                    n.IdNegocio,
+                    n.Nombre,
+                    n.IdMunicipio,
+                    NombreMunicipio = n.IdMunicipioNavigation.Nombre,
+                    n.IdCategoria,
+                    Categoria = n.IdCategoriaNavigation.Nombre,
+                    IconoCategoria = n.IdCategoriaNavigation.Icono,
+                    n.ImagenPrincipalUrl,
+                    n.Latitud,
+                    n.Longitud
+                })
+                .ToListAsync();
+
+            return negocios.Select(n => new NegocioMapaDto
+            {
+                IdNegocio = n.IdNegocio,
+                Nombre = n.Nombre,
+                IdMunicipio = n.IdMunicipio,
+                NombreMunicipio = n.NombreMunicipio,
+                IdCategoria = n.IdCategoria,
+                Categoria = n.Categoria,
+                IconoCategoria = n.IconoCategoria,
+                ImagenUrl = n.ImagenPrincipalUrl,
+                Latitud = (double)n.Latitud!.Value,
+                Longitud = (double)n.Longitud!.Value
+            }).ToList();
+        }
+
         // ◆ CAMBIO: trae el detalle completo y ordena del MÁS NUEVO al más antiguo
         public async Task<List<NegocioPendienteDto>> ListarPendientesAsync(int idAdminMunicipal)
         {

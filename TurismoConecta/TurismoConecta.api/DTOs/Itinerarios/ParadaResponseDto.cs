@@ -12,5 +12,9 @@ namespace TurismoConecta.api.DTOs.Itinerarios
         public DateOnly? FechaVisita { get; set; }
         public decimal? DistanciaKm { get; set; }
         public int? TiempoEstimadoMin { get; set; }
+
+        // Para el mapa de viaje: el pin de la parada (null si el municipio no tiene ubicación)
+        public double? Latitud { get; set; }
+        public double? Longitud { get; set; }
     }
 }
