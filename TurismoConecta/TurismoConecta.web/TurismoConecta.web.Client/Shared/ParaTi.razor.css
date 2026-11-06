@@ -216,6 +216,50 @@
         color: #16301C;
     }
 
+.para-ti-sorpresa {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem 1.1rem;
+    margin-top: 2rem;
+    color: rgba(247, 241, 227, 0.8);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.para-ti-sorpresa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    background: #D9A441;
+    color: #16301C;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+    .para-ti-sorpresa-btn:hover,
+    .para-ti-sorpresa-btn:focus-visible {
+        background: #F0BE5C;
+        color: #16301C;
+        transform: translateY(-2px);
+    }
+
+    .para-ti-sorpresa-btn:focus-visible {
+        outline: 3px solid #F7F1E3;
+        outline-offset: 3px;
+    }
+
+@media (prefers-reduced-motion: reduce) {
+    .para-ti-sorpresa-btn {
+        transition: none;
+    }
+}
+
 .para-ti-cta {
     display: flex;
     align-items: center;
