@@ -1,4 +1,5 @@
 .reco-card {
+    position: relative;
     height: 100%;
     background: #FFFDF8;
     border-radius: 18px;
@@ -61,6 +62,50 @@
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+}
+
+/* "No me interesa": discreto, se nota al pasar el mouse (en celular siempre visible) */
+.reco-descartar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 253, 248, 0.9);
+    color: #1C2B24;
+    font-size: 0.9rem;
+    cursor: pointer;
+    opacity: 0.75;
+    box-shadow: 0 2px 8px rgba(22, 48, 28, 0.2);
+    transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+    .reco-descartar:hover,
+    .reco-descartar:focus-visible {
+        opacity: 1;
+        background: #B4432D;
+        color: #FFFDF8;
+        transform: scale(1.08);
+    }
+
+    .reco-descartar:focus-visible {
+        outline: 3px solid #D9A441;
+        outline-offset: 2px;
+    }
+
+@media (hover: none) {
+    .reco-descartar {
+        opacity: 1;
+    }
+}
+
+.reco-razon-cerca {
+    color: #2F5D80;
 }
 
 .reco-cuerpo {

@@ -1,0 +1,150 @@
+@* Perfil: el usuario edita sus gustos (alimentan "Elegidos para ti") y ve los destinos que ocultó
+   con "No me interesa", para volver a mostrarlos. *@
+@inject RecomendacionApiService RecoService
+@inject EtiquetaApiService EtiquetaService
+
+<section class="mis-gustos" aria-labelledby="mis-gustos-titulo">
+    <h3 id="mis-gustos-titulo">Mis gustos</h3>
+    <p class="gustos-ayuda">Elige hasta @MaximoGustos. Con ellos armamos tus recomendaciones del inicio.</p>
+
+    @if (cargando)
+    {
+        <p class="gustos-vacio">Cargando…</p>
+    }
+    else if (!etiquetas.Any())
+    {
+        <p class="gustos-vacio">No hay gustos disponibles por ahora.</p>
+    }
+    else
+    {
+        <div class="gustos-chips" role="group" aria-label="Tus gustos">
+            @foreach (var etiqueta in etiquetas)
+            {
+                var activo = seleccion.Contains(etiqueta.IdEtiqueta);
+                <button type="button" class="gusto @(activo ? "activo" : "")"
+                        aria-pressed="@(activo ? "true" : "false")"
+                        @onclick="() => Alternar(etiqueta.IdEtiqueta)">
+                    @if (activo)
+                    {
+                        <i class="ph-bold ph-check" aria-hidden="true"></i>
+                    }
+                    @etiqueta.Nombre
+                </button>
+            }
+        </div>
+
+        <div class="gustos-acciones">
+            <button type="button" class="gustos-guardar" disabled="@(guardando || !HayCambios)" @onclick="Guardar">
+                @(guardando ? "Guardando…" : "Guardar gustos")
+            </button>
+            @if (aviso is not null)
+            {
+                <span class="gustos-aviso @(avisoEsError ? "error" : "")" role="status">@aviso</span>
+            }
+        </div>
+    }
+
+    <h3 class="ocultos-titulo">Destinos que ocultaste</h3>
+
+    @if (descartados is null)
+    {
+        <p class="gustos-vacio">No pudimos cargar los destinos ocultos.</p>
+    }
+    else if (!descartados.Any())
+    {
+        <p class="gustos-vacio">No has ocultado ningún destino. Usa la ✕ en tus recomendaciones si alguno no te interesa.</p>
+    }
+    else
+    {
+        <ul class="ocultos-lista">
+            @foreach (var d in descartados)
+            {
+                <li @key="d.IdMunicipio">
+                    <i class="ph ph-eye-slash" aria-hidden="true"></i>
+                    <a href="/municipios/@d.IdMunicipio">@d.Nombre</a>
+                    <small>@d.FechaRegistro.ToLocalTime().ToString("dd/MM/yyyy")</small>
+                    <button type="button" class="ocultos-restaurar" @onclick="() => Restaurar(d)">
+                        Volver a mostrar
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private const int MaximoGustos = 10;
+
+    private List<EtiquetaDto> etiquetas = new();
+    private HashSet<int> seleccion = new();
+    private HashSet<int> guardados = new();
+    private List<MunicipioDescartadoDto>? descartados = new();
+
+    private bool cargando = true;
+    private bool guardando;
+    private string? aviso;
+    private bool avisoEsError;
+
+    private bool HayCambios => !seleccion.SetEquals(guardados);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var tareaEtiquetas = EtiquetaService.ListarAsync();
+        var tareaGustos = RecoService.ObtenerPreferenciasAsync();
+        var tareaDescartados = RecoService.ListarDescartadosAsync();
+
+        etiquetas = (await tareaEtiquetas).Where(e => e.Activo).OrderBy(e => e.Nombre).ToList();
+
+        // Si una etiqueta se desactivó, deja de contar como gusto
+        guardados = (await tareaGustos).Where(id => etiquetas.Any(e => e.IdEtiqueta == id)).ToHashSet();
+        seleccion = guardados.ToHashSet();
+        descartados = await tareaDescartados;
+
+        cargando = false;
+    }
+
+    private void Alternar(int idEtiqueta)
+    {
+        aviso = null;
+        if (seleccion.Remove(idEtiqueta)) return;
+
+        if (seleccion.Count >= MaximoGustos)
+        {
+            MostrarAviso($"Puedes elegir hasta {MaximoGustos} gustos", esError: true);
+            return;
+        }
+        seleccion.Add(idEtiqueta);
+    }
+
+    private async Task Guardar()
+    {
+        guardando = true;
+        aviso = null;
+
+        if (await RecoService.GuardarPreferenciasAsync(seleccion))
+        {
+            guardados = seleccion.ToHashSet();
+            MostrarAviso("Gustos guardados");
+        }
+        else
+        {
+            MostrarAviso("No pudimos guardar tus gustos. Inténtalo de nuevo.", esError: true);
+        }
+
+        guardando = false;
+    }
+
+    private async Task Restaurar(MunicipioDescartadoDto d)
+    {
+        if (await RecoService.RestaurarAsync(d.IdMunicipio))
+            descartados?.Remove(d);
+        else
+            MostrarAviso($"No pudimos volver a mostrar {d.Nombre}.", esError: true);
+    }
+
+    private void MostrarAviso(string texto, bool esError = false)
+    {
+        aviso = texto;
+        avisoEsError = esError;
+    }
+}

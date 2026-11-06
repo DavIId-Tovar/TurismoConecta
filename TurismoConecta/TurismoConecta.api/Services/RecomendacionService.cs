@@ -19,6 +19,7 @@ namespace TurismoConecta.api.Services
         private const double PesoFavorito = 3.0;
         private const double PesoItinerario = 2.0;
         private const double PesoPorEstrella = 1.5;        // 5★ → +3, 4★ → +1.5, 2★ → -1.5, 1★ → -3
+        private const double PesoDescartado = -1.0;        // "No me interesa": sus etiquetas pierden peso
 
         
         // ---- Cuánto pesa cada parte del puntaje final (sin modelo colaborativo) ----
@@ -39,13 +40,21 @@ namespace TurismoConecta.api.Services
         private const double AfinidadMinimaRazon = 0.35;    // por debajo, la razón no se atribuye a los gustos
         private const int MaximoPreferencias = 10;
 
+        // ---- "Queda cerca" ----
+        private const double FactorCarretera = 1.3;         // la carretera es ~30 % más larga que la línea recta
+        private const double VelocidadPromedioKmH = 45;     // vías de montaña en Boyacá
+
         private readonly AppDbContext _context;
         private readonly ModeloColaborativo _modelo;
+        private readonly double _radioCercaKm;
+        private readonly ILogger<RecomendacionService> _logger;
 
-        public RecomendacionService(AppDbContext context, ModeloColaborativo modelo)
+        public RecomendacionService(AppDbContext context, ModeloColaborativo modelo, IConfiguration configuracion, ILogger<RecomendacionService> logger)
         {
             _context = context;
             _modelo = modelo;
+            _logger = logger;
+            _radioCercaKm = Math.Max(5, configuracion.GetValue("Recomendaciones:RadioCercaKm", 60.0));
         }
 
         // ════════════════════════════════════════════════
@@ -58,7 +67,12 @@ namespace TurismoConecta.api.Services
             string? Descripcion,
             Dictionary<int, string> Etiquetas,
             double? Promedio,
-            int TotalResenas);
+            int TotalResenas,
+            double? Latitud,
+            double? Longitud)
+        {
+            public bool TieneUbicacion => Latitud is double lat && Longitud is double lng && lat != 0 && lng != 0;
+        }
 
         private sealed record Puntuado(Candidato Municipio, double Puntaje, double Afinidad, double? Colaborativo);
 
@@ -78,8 +92,11 @@ namespace TurismoConecta.api.Services
         {
             cantidad = Math.Clamp(cantidad, 1, 12);
             var candidatos = await CargarCandidatosAsync(ct);
-            var (perfil, conocidos) = await ConstruirPerfilAsync(idUsuario, candidatos, ct);
-                        return Clasificar(candidatos, perfil, conocidos, cantidad, idUsuario);
+            var (perfil, conocidos, descartados) = await ConstruirPerfilAsync(idUsuario, candidatos, ct);
+
+            // Lo que el usuario marcó "No me interesa" no vuelve a salir
+            candidatos.RemoveAll(c => descartados.Contains(c.IdMunicipio));
+            return Clasificar(candidatos, perfil, conocidos, cantidad, idUsuario);
         }
 
         public async Task<List<RecomendacionDto>> PorGustosAsync(List<int> idsEtiquetas, int cantidad, CancellationToken ct = default)
@@ -99,7 +116,7 @@ namespace TurismoConecta.api.Services
             return Clasificar(candidatos, perfil, new HashSet<int>(), cantidad, idUsuario: null);
         }
 
-        public async Task<List<RecomendacionDto>> SimilaresAsync(int idMunicipio, int cantidad, CancellationToken ct = default)
+        public async Task<List<RecomendacionDto>> SimilaresAsync(int idMunicipio, int? idUsuario, int cantidad, CancellationToken ct = default)
         {
             cantidad = Math.Clamp(cantidad, 1, 8);
             var candidatos = await CargarCandidatosAsync(ct);
@@ -107,8 +124,17 @@ namespace TurismoConecta.api.Services
             var origen = candidatos.FirstOrDefault(c => c.IdMunicipio == idMunicipio);
             if (origen is null) return new();
 
+            // Con sesión, lo que marcó "No me interesa" tampoco sale en "Si te gustó X…"
+            var descartados = idUsuario is int id
+                ? (await _context.RecomendacionesDescartadas
+                    .AsNoTracking()
+                    .Where(d => d.IdUsuario == id)
+                    .Select(d => d.IdMunicipio)
+                    .ToListAsync(ct)).ToHashSet()
+                : new HashSet<int>();
+
             return candidatos
-                .Where(c => c.IdMunicipio != idMunicipio)
+                .Where(c => c.IdMunicipio != idMunicipio && !descartados.Contains(c.IdMunicipio))
                 .Select(c => new { Municipio = c, Puntaje = 0.65 * Jaccard(origen, c) + 0.35 * Calidad(c) })
                 .OrderByDescending(x => x.Puntaje)
                 .ThenBy(x => x.Municipio.Nombre)
@@ -185,6 +211,141 @@ namespace TurismoConecta.api.Services
             }
         }
 
+        public async Task<List<RecomendacionDto>> CercaAsync(int idMunicipio, int? idUsuario, List<int> excluir, int cantidad, CancellationToken ct = default)
+        {
+            cantidad = Math.Clamp(cantidad, 1, 8);
+            var candidatos = await CargarCandidatosAsync(ct);
+
+            var origen = candidatos.FirstOrDefault(c => c.IdMunicipio == idMunicipio);
+            if (origen is null || !origen.TieneUbicacion) return new();
+
+            // Se ocultan el origen, lo que ya está en la ruta y lo que el usuario descartó
+            var ocultos = new HashSet<int>(excluir) { idMunicipio };
+            var afinidades = new Dictionary<int, double>();
+
+            if (idUsuario is int id)
+            {
+                var (perfil, _, descartados) = await ConstruirPerfilAsync(id, candidatos, ct);
+                ocultos.UnionWith(descartados);
+                if (perfil.Values.Any(a => a.Peso > 0))
+                    afinidades = CalcularAfinidades(candidatos, perfil);
+            }
+
+            var conDistancia = candidatos
+                .Where(c => !ocultos.Contains(c.IdMunicipio) && c.TieneUbicacion)
+                .Select(c => (Municipio: c, Km: DistanciaKm(origen, c)))
+                .ToList();
+
+            // Los que están dentro del radio; si ninguno lo está, al menos los más cercanos
+            var opciones = conDistancia.Where(x => x.Km <= _radioCercaKm).ToList();
+            if (opciones.Count == 0)
+                opciones = conDistancia.OrderBy(x => x.Km).Take(cantidad).ToList();
+
+            return opciones
+                .Select(x =>
+                {
+                    var cercania = Math.Clamp(1 - x.Km / _radioCercaKm, 0, 1);
+                    var puntaje = afinidades.Count > 0
+                        ? 0.5 * cercania + 0.3 * afinidades[x.Municipio.IdMunicipio] + 0.2 * Calidad(x.Municipio)
+                        : 0.6 * cercania + 0.4 * Calidad(x.Municipio);
+
+                    return (x.Municipio, x.Km, Puntaje: puntaje);
+                })
+                .OrderByDescending(x => x.Puntaje)
+                .ThenBy(x => x.Km)
+                .Take(cantidad)
+                .Select(x =>
+                {
+                    // Estimación sin mapa: línea recta × factor de carretera, a velocidad de montaña
+                    var kmCarretera = (int)Math.Round(x.Km * FactorCarretera);
+                    var minutos = Math.Max(5, (int)Math.Round(kmCarretera / VelocidadPromedioKmH * 60 / 5) * 5);
+
+                    var dto = CrearDto(x.Municipio, x.Puntaje,
+                        $"~{kmCarretera} km de {origen.Nombre} · {FormatoDuracion(minutos)}", TiposRazon.Cerca);
+                    dto.DistanciaKm = kmCarretera;
+                    dto.TiempoEstimadoMin = minutos;
+                    return dto;
+                })
+                .ToList();
+        }
+
+        public async Task<(bool exito, string? error)> DescartarAsync(int idUsuario, int idMunicipio, CancellationToken ct = default)
+        {
+            if (!await _context.Municipios.AnyAsync(m => m.IdMunicipio == idMunicipio && m.Activo, ct))
+                return (false, "El municipio no existe o ya no está disponible.");
+
+            // Descartar dos veces no es un error: el resultado es el mismo
+            if (await _context.RecomendacionesDescartadas.AnyAsync(d => d.IdUsuario == idUsuario && d.IdMunicipio == idMunicipio, ct))
+                return (true, null);
+
+            _context.RecomendacionesDescartadas.Add(new RecomendacionDescartada
+            {
+                IdUsuario = idUsuario,
+                IdMunicipio = idMunicipio,
+                FechaRegistro = DateTime.UtcNow
+            });
+
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+            {
+                // Doble clic: el otro guardado ganó con el índice único, el municipio ya quedó descartado
+            }
+            catch (DbUpdateException ex)
+            {
+                // Cualquier otro fallo (tabla, llaves foráneas…) se informa: la pantalla no debe decir "Ocultamos" sin guardarlo
+                _logger.LogError(ex, "[Recomendaciones] No se pudo guardar el descarte del municipio {IdMunicipio} del usuario {IdUsuario}", idMunicipio, idUsuario);
+                return (false, "No pudimos ocultar ese destino. Inténtalo de nuevo.");
+            }
+
+            return (true, null);
+        }
+
+        public Task<int> RestaurarAsync(int idUsuario, int idMunicipio, CancellationToken ct = default) =>
+            _context.RecomendacionesDescartadas
+                .Where(d => d.IdUsuario == idUsuario && d.IdMunicipio == idMunicipio)
+                .ExecuteDeleteAsync(ct);
+
+        public Task<List<MunicipioDescartadoDto>> ListarDescartadosAsync(int idUsuario, CancellationToken ct = default) =>
+            _context.RecomendacionesDescartadas
+                .AsNoTracking()
+                .Where(d => d.IdUsuario == idUsuario)
+                .OrderByDescending(d => d.FechaRegistro)
+                .Select(d => new MunicipioDescartadoDto
+                {
+                    IdMunicipio = d.IdMunicipio,
+                    Nombre = d.IdMunicipioNavigation.Nombre,
+                    ImagenUrl = d.IdMunicipioNavigation.ImagenUrl,
+                    FechaRegistro = d.FechaRegistro
+                })
+                .ToListAsync(ct);
+
+        public async Task<MetricasRecomendacionesDto> MetricasAsync(CancellationToken ct = default)
+        {
+            var masDescartados = await _context.RecomendacionesDescartadas
+                .AsNoTracking()
+                .GroupBy(d => d.IdMunicipioNavigation.Nombre)
+                .Select(g => new { Nombre = g.Key, Total = g.Count() })
+                .OrderByDescending(g => g.Total)
+                .ThenBy(g => g.Nombre)
+                .Take(3)
+                .ToListAsync(ct);
+
+            return new MetricasRecomendacionesDto
+            {
+                UsuariosConGustos = await _context.PreferenciasUsuario.Select(p => p.IdUsuario).Distinct().CountAsync(ct),
+                Descartes = await _context.RecomendacionesDescartadas.CountAsync(ct),
+                UsuariosQueDescartaron = await _context.RecomendacionesDescartadas.Select(d => d.IdUsuario).Distinct().CountAsync(ct),
+                MunicipiosActivos = await _context.Municipios.CountAsync(m => m.Activo, ct),
+                MunicipiosSinCoordenadas = await _context.Municipios.CountAsync(m => m.Activo
+                    && (m.Latitud == null || m.Longitud == null || m.Latitud == 0 || m.Longitud == 0), ct),
+                MasDescartados = masDescartados.Select(m => $"{m.Nombre} ({m.Total})").ToList(),
+                RadioCercaKm = _radioCercaKm
+            };
+        }
+
         // ════════════════════════════════════════════════
         // DATOS
         // ════════════════════════════════════════════════
@@ -206,7 +367,9 @@ namespace TurismoConecta.api.Services
                         .Select(me => new { me.IdEtiqueta, me.IdEtiquetaNavigation.Nombre })
                         .ToList(),
                     Promedio = m.Reseñas.Where(r => r.Moderada).Average(r => (double?)r.Calificacion),
-                    Total = m.Reseñas.Count(r => r.Moderada)
+                    Total = m.Reseñas.Count(r => r.Moderada),
+                    m.Latitud,
+                    m.Longitud
                 })
                 .ToListAsync(ct);
 
@@ -218,15 +381,19 @@ namespace TurismoConecta.api.Services
                     d.Descripcion,
                     d.Etiquetas.GroupBy(e => e.IdEtiqueta).ToDictionary(g => g.Key, g => g.First().Nombre),
                     d.Promedio,
-                    d.Total))
+                    d.Total,
+                    (double?)d.Latitud,
+                    (double?)d.Longitud))
                 .ToList();
         }
 
         /// <summary>
-        /// El perfil de gustos sale de 4 señales: gustos elegidos, favoritos, reseñas propias e itinerarios.
+        /// El perfil de gustos sale de 5 señales: gustos elegidos, favoritos, reseñas propias, itinerarios
+        /// y lo que marcó "No me interesa" (resta).
         /// "Conocidos" son los municipios con los que el usuario ya interactuó (se recomiendan al final).
+        /// "Descartados" no se le vuelven a recomendar.
         /// </summary>
-        private async Task<(Dictionary<int, AporteEtiqueta> Perfil, HashSet<int> Conocidos)> ConstruirPerfilAsync(
+        private async Task<(Dictionary<int, AporteEtiqueta> Perfil, HashSet<int> Conocidos, HashSet<int> Descartados)> ConstruirPerfilAsync(
             int idUsuario, List<Candidato> candidatos, CancellationToken ct)
         {
             var perfil = new Dictionary<int, AporteEtiqueta>();
@@ -274,7 +441,22 @@ namespace TurismoConecta.api.Services
             foreach (var idMunicipio in enItinerarios)
                 SumarMunicipio(idMunicipio, PesoItinerario, TiposRazon.Itinerario);
 
-            return (perfil, conocidos);
+            // 5. Lo que marcó "No me interesa": sus etiquetas restan (no cuenta como conocido)
+            var descartados = (await _context.RecomendacionesDescartadas
+                .AsNoTracking()
+                .Where(d => d.IdUsuario == idUsuario)
+                .Select(d => d.IdMunicipio)
+                .ToListAsync(ct))
+                .ToHashSet();
+
+            foreach (var idMunicipio in descartados)
+            {
+                if (!porId.TryGetValue(idMunicipio, out var municipio)) continue;
+                foreach (var idEtiqueta in municipio.Etiquetas.Keys)
+                    Sumar(perfil, idEtiqueta, PesoDescartado, TiposRazon.Gusto, municipio.Nombre);
+            }
+
+            return (perfil, conocidos, descartados);
 
             void SumarMunicipio(int idMunicipio, double aporte, string tipo)
             {
@@ -310,22 +492,12 @@ namespace TurismoConecta.api.Services
     List<Candidato> candidatos, Dictionary<int, AporteEtiqueta> perfil, HashSet<int> conocidos, int cantidad, int? idUsuario)
         {
             var hayPerfil = perfil.Values.Any(a => a.Peso > 0);
-
-            // Afinidad: suma de los pesos de sus etiquetas, dividida por √(cantidad de etiquetas)
-            // para no premiar al municipio que tiene muchas etiquetas. Luego se normaliza de 0 a 1.
-            var crudas = candidatos.ToDictionary(
-                c => c.IdMunicipio,
-                c => c.Etiquetas.Count == 0
-                    ? 0
-                    : Math.Max(0, c.Etiquetas.Keys.Sum(id => perfil.TryGetValue(id, out var a) ? a.Peso : 0)
-                                  / Math.Sqrt(c.Etiquetas.Count)));
-
-            var maximaCruda = crudas.Values.DefaultIfEmpty(0).Max();
+            var afinidades = CalcularAfinidades(candidatos, perfil);
 
             var puntuados = candidatos
                 .Select(c =>
                 {
-                    var afinidad = maximaCruda > 0 ? crudas[c.IdMunicipio] / maximaCruda : 0;
+                    var afinidad = afinidades[c.IdMunicipio];
                     var novedad = conocidos.Contains(c.IdMunicipio) ? 0 : 1;
 
                     // Lo que ML.NET estima que le daría este usuario (1-5★), llevado a 0-1. null si no lo conoce
@@ -373,6 +545,38 @@ namespace TurismoConecta.api.Services
                     return CrearDto(p.Municipio, p.Puntaje, razon, tipo);
                 })
                 .ToList();
+        }
+
+        /// <summary>
+        /// Afinidad de 0 a 1: suma de los pesos de sus etiquetas en el perfil, dividida por √(cantidad de etiquetas)
+        /// para no premiar al municipio que tiene muchas etiquetas. Luego se normaliza contra el mejor.
+        /// </summary>
+        private static Dictionary<int, double> CalcularAfinidades(List<Candidato> candidatos, Dictionary<int, AporteEtiqueta> perfil)
+        {
+            var crudas = candidatos.ToDictionary(
+                c => c.IdMunicipio,
+                c => c.Etiquetas.Count == 0
+                    ? 0
+                    : Math.Max(0, c.Etiquetas.Keys.Sum(id => perfil.TryGetValue(id, out var a) ? a.Peso : 0)
+                                  / Math.Sqrt(c.Etiquetas.Count)));
+
+            var maximaCruda = crudas.Values.DefaultIfEmpty(0).Max();
+            return crudas.ToDictionary(c => c.Key, c => maximaCruda > 0 ? c.Value / maximaCruda : 0);
+        }
+
+        /// <summary>Distancia en línea recta entre dos puntos de la Tierra (fórmula de Haversine), en km.</summary>
+        private static double DistanciaKm(Candidato a, Candidato b)
+        {
+            const double RadioTierraKm = 6371;
+            static double Radianes(double grados) => grados * Math.PI / 180;
+
+            var dLat = Radianes(b.Latitud!.Value - a.Latitud!.Value);
+            var dLng = Radianes(b.Longitud!.Value - a.Longitud!.Value);
+
+            var h = Math.Pow(Math.Sin(dLat / 2), 2)
+                  + Math.Cos(Radianes(a.Latitud.Value)) * Math.Cos(Radianes(b.Latitud.Value)) * Math.Pow(Math.Sin(dLng / 2), 2);
+
+            return 2 * RadioTierraKm * Math.Asin(Math.Sqrt(h));
         }
 
         /// <summary>Elige uno por uno el mejor, restando puntos a los que se parecen a los ya elegidos.</summary>
@@ -452,6 +656,9 @@ namespace TurismoConecta.api.Services
             var union = a.Etiquetas.Keys.Union(b.Etiquetas.Keys).Count();
             return union == 0 ? 0 : (double)a.Etiquetas.Keys.Intersect(b.Etiquetas.Keys).Count() / union;
         }
+
+        private static string FormatoDuracion(int minutos) =>
+            minutos < 60 ? $"{minutos} min" : $"{minutos / 60} h {minutos % 60:00} min";
 
         private static RecomendacionDto CrearDto(Candidato c, double puntaje, string razon, string tipo) => new()
         {

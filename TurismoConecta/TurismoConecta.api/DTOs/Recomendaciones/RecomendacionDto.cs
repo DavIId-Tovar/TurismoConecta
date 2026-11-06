@@ -17,6 +17,10 @@ namespace TurismoConecta.api.DTOs.Recomendaciones
         // La frase que se ve en la tarjeta ("Porque te gusta Ecoturismo") y su tipo (para el ícono)
         public string Razon { get; set; } = string.Empty;
         public string TipoRazon { get; set; } = TiposRazon.Nuevo;
+
+        // Solo en "Queda cerca": estimación por carretera desde el municipio de origen
+        public int? DistanciaKm { get; set; }
+        public int? TiempoEstimadoMin { get; set; }
     }
 
     /// <summary>De dónde sale la razón principal de una recomendación.</summary>
@@ -30,6 +34,7 @@ namespace TurismoConecta.api.DTOs.Recomendaciones
         public const string Comunidad = "comunidad";
         public const string Joya = "joya";
         public const string Popular = "popular";
+        public const string Cerca = "cerca";
         public const string Nuevo = "nuevo";
     }
 }

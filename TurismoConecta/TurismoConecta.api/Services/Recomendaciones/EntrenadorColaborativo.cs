@@ -8,13 +8,15 @@ namespace TurismoConecta.api.Services.Recomendaciones
 {
     /// <summary>
     /// Entrena el filtrado colaborativo (Matrix Factorization de ML.NET): "a viajeros con gustos como los tuyos
-    /// les encantó X". Aprende de reseñas (su calificación), favoritos (cuentan como 5★) e itinerarios (4★).
+    /// les encantó X". Aprende de reseñas (su calificación), favoritos (cuentan como 5★), itinerarios (4★)
+    /// y "No me interesa" (2★).
     /// Solo se activa cuando hay datos suficientes; mientras tanto el motor funciona sin él.
     /// </summary>
     public class EntrenadorColaborativo
     {
         private const float PuntajeFavorito = 5f;
         private const float PuntajeItinerario = 4f;
+        private const float PuntajeDescartado = 2f;
         private const int MinimoMunicipios = 3;
         private const int MinimoParaMedirError = 50;   // con menos datos, separar un grupo de prueba no dice nada
 
@@ -175,16 +177,26 @@ namespace TurismoConecta.api.Services.Recomendaciones
                 .Distinct()
                 .ToListAsync(ct);
 
+            var descartes = await _context.RecomendacionesDescartadas
+                .AsNoTracking()
+                .Where(d => municipiosActivos.Contains(d.IdMunicipio))
+                .Select(d => new { d.IdUsuario, d.IdMunicipio })
+                .ToListAsync(ct);
+
             var combinadas = reseñas
                 .GroupBy(r => (r.IdUsuario, r.IdMunicipio))
                 .ToDictionary(g => g.Key, g => g.Average(r => r.Puntaje));
 
-            var conReseña = combinadas.Keys.ToHashSet();
+            // La reseña manda; sin reseña, "No me interesa" cuenta como 2★ y le gana a favorito/itinerario
+            foreach (var descarte in descartes)
+                combinadas.TryAdd((descarte.IdUsuario, descarte.IdMunicipio), PuntajeDescartado);
+
+            var explicitas = combinadas.Keys.ToHashSet();
 
             foreach (var implicita in favoritos.Concat(itinerarios))
             {
                 var clave = (implicita.IdUsuario, implicita.IdMunicipio);
-                if (conReseña.Contains(clave)) continue;
+                if (explicitas.Contains(clave)) continue;
 
                 combinadas[clave] = Math.Max(combinadas.GetValueOrDefault(clave), implicita.Puntaje);
             }

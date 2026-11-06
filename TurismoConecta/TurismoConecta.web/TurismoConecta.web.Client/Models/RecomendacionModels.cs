@@ -13,6 +13,10 @@ namespace TurismoConecta.web.Client.Models
         public int Coincidencia { get; set; }
         public string Razon { get; set; } = "";
         public string TipoRazon { get; set; } = TiposRazon.Nuevo;
+
+        // Solo en "Queda cerca": estimación por carretera desde el municipio de origen
+        public int? DistanciaKm { get; set; }
+        public int? TiempoEstimadoMin { get; set; }
     }
 
     // Mismos valores que TiposRazon del API: deciden el ícono de la razón en la tarjeta
@@ -26,6 +30,7 @@ namespace TurismoConecta.web.Client.Models
         public const string Comunidad = "comunidad";
         public const string Joya = "joya";
         public const string Popular = "popular";
+        public const string Cerca = "cerca";
         public const string Nuevo = "nuevo";
     }
 
@@ -49,5 +54,25 @@ namespace TurismoConecta.web.Client.Models
         public string Mensaje { get; set; } = "";
     }
 
+    // Uso del motor (panel del admin general)
+    public class MetricasRecomendacionesDto
+    {
+        public int UsuariosConGustos { get; set; }
+        public int Descartes { get; set; }
+        public int UsuariosQueDescartaron { get; set; }
+        public int MunicipiosActivos { get; set; }
+        public int MunicipiosSinCoordenadas { get; set; }
+        public double RadioCercaKm { get; set; }
+        public List<string> MasDescartados { get; set; } = new();
+    }
+
+    // Un municipio que el usuario ocultó con "No me interesa" (se lista en su Perfil)
+    public class MunicipioDescartadoDto
+    {
+        public int IdMunicipio { get; set; }
+        public string Nombre { get; set; } = "";
+        public string? ImagenUrl { get; set; }
+        public DateTime FechaRegistro { get; set; }
+    }
 
 }

@@ -39,6 +39,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<PreferenciaUsuario> PreferenciasUsuario { get; set; }
 
+    public virtual DbSet<RecomendacionDescartada> RecomendacionesDescartadas { get; set; }
+
     public virtual DbSet<NegocioEtiqueta> NegocioEtiqueta { get; set; }
 
     public virtual DbSet<Notificacion> Notificacions { get; set; }
@@ -418,6 +420,32 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.IdEtiqueta)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_PreferenciaUsuario_Etiqueta");
+        });
+
+        modelBuilder.Entity<RecomendacionDescartada>(entity =>
+        {
+            entity.HasKey(e => e.IdRecomendacionDescartada);
+
+            entity.ToTable("RecomendacionDescartada");
+
+            entity.HasIndex(e => new { e.IdUsuario, e.IdMunicipio }, "UQ_RecomendacionDescartada_Usuario_Municipio").IsUnique();
+
+            entity.Property(e => e.IdRecomendacionDescartada).HasColumnName("idRecomendacionDescartada");
+            entity.Property(e => e.IdUsuario).HasColumnName("idUsuario");
+            entity.Property(e => e.IdMunicipio).HasColumnName("idMunicipio");
+            entity.Property(e => e.FechaRegistro)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("fechaRegistro");
+
+            entity.HasOne(d => d.IdUsuarioNavigation).WithMany()
+                .HasForeignKey(d => d.IdUsuario)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_RecomendacionDescartada_Usuario");
+
+            entity.HasOne(d => d.IdMunicipioNavigation).WithMany()
+                .HasForeignKey(d => d.IdMunicipio)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_RecomendacionDescartada_Municipio");
         });
 
 

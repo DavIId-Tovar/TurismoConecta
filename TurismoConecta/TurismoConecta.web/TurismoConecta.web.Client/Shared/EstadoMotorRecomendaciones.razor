@@ -65,9 +65,44 @@
         </div>
     }
 
+    @* Uso del motor: gustos, "No me interesa" y cobertura de "Queda cerca" *@
+    @if (metricas is not null)
+    {
+        <h4 class="motor-subtitulo-seccion">Uso de las recomendaciones</h4>
+        <div class="motor-metricas">
+            <div class="motor-dato">
+                <span>Viajeros con gustos</span>
+                <strong>@metricas.UsuariosConGustos</strong>
+            </div>
+
+            <div class="motor-dato">
+                <span title="Veces que un viajero marcó &quot;No me interesa&quot;">Destinos ocultados</span>
+                <strong>@metricas.Descartes <small>(@metricas.UsuariosQueDescartaron viajeros)</small></strong>
+            </div>
+
+            <div class="motor-dato">
+                <span title="Sin coordenadas no aparecen en &quot;Queda cerca&quot;">Municipios con ubicación</span>
+                <strong>@(metricas.MunicipiosActivos - metricas.MunicipiosSinCoordenadas) / @metricas.MunicipiosActivos</strong>
+            </div>
+
+            <div class="motor-dato">
+                <span>Más ocultados</span>
+                <strong>@(metricas.MasDescartados.Any() ? string.Join(", ", metricas.MasDescartados) : "—")</strong>
+            </div>
+        </div>
+
+        @if (metricas.MunicipiosSinCoordenadas > 0)
+        {
+            <p class="motor-texto aviso">
+                <i class="ph-fill ph-warning" aria-hidden="true"></i>
+                @metricas.MunicipiosSinCoordenadas municipio(s) sin latitud/longitud no aparecen en "Queda cerca" (radio @metricas.RadioCercaKm.ToString("0") km).
+            </p>
+        }
+    }
+
     <div class="motor-pie">
         <span class="motor-ayuda">
-            Aprende de reseñas, favoritos e itinerarios. Se entrena solo cada pocas horas.
+            Aprende de reseñas, favoritos, itinerarios y destinos ocultados. Se entrena solo cada pocas horas.
         </span>
         <button type="button" class="motor-boton" disabled="@entrenando" @onclick="Entrenar">
             <i class="ph ph-arrows-clockwise @(entrenando ? "girando" : "")" aria-hidden="true"></i>
@@ -78,12 +113,15 @@
 
 @code {
     private EstadoModeloDto? estado;
+    private MetricasRecomendacionesDto? metricas;
     private bool cargando = true;
     private bool entrenando;
 
     protected override async Task OnInitializedAsync()
     {
+        var tareaMetricas = RecoService.ObtenerMetricasAsync();
         estado = await RecoService.ObtenerEstadoModeloAsync();
+        metricas = await tareaMetricas;
         cargando = false;
     }
 
@@ -91,6 +129,7 @@
     {
         entrenando = true;
         estado = await RecoService.EntrenarModeloAsync() ?? estado;
+        metricas = await RecoService.ObtenerMetricasAsync() ?? metricas;
         entrenando = false;
     }
 
