@@ -21,6 +21,25 @@ namespace TurismoConecta.api.DTOs.Recomendaciones
         public string? Aviso { get; set; }
     }
 
+    /// <summary>Km y tiempo de una ruta tal como está en pantalla (se recalcula al agregar, quitar o mover paradas).</summary>
+    public class RutaEstimadaDto
+    {
+        public List<TramoRutaDto> Tramos { get; set; } = new();
+        public int KmTotal { get; set; }
+        public int MinutosTotal { get; set; }
+
+        // Paradas sin coordenadas: no suman km y se avisa en pantalla
+        public List<string> SinUbicacion { get; set; } = new();
+    }
+
+    public class TramoRutaDto
+    {
+        public int IdMunicipio { get; set; }
+        public string? DesdeNombre { get; set; }
+        public int? KmDesdeAnterior { get; set; }
+        public int? MinutosDesdeAnterior { get; set; }
+    }
+
     public class ParadaPropuestaDto
     {
         public int IdMunicipio { get; set; }

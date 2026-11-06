@@ -78,6 +78,23 @@ namespace TurismoConecta.web.Client.Models
         public string? Aviso { get; set; }
     }
 
+    // Km y tiempo de la ruta tal como está en pantalla
+    public class RutaEstimadaDto
+    {
+        public List<TramoRutaDto> Tramos { get; set; } = new();
+        public int KmTotal { get; set; }
+        public int MinutosTotal { get; set; }
+        public List<string> SinUbicacion { get; set; } = new();
+    }
+
+    public class TramoRutaDto
+    {
+        public int IdMunicipio { get; set; }
+        public string? DesdeNombre { get; set; }
+        public int? KmDesdeAnterior { get; set; }
+        public int? MinutosDesdeAnterior { get; set; }
+    }
+
     public class ParadaPropuestaDto
     {
         public int IdMunicipio { get; set; }

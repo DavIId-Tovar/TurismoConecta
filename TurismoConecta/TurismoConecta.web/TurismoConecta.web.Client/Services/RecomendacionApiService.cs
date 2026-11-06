@@ -44,6 +44,17 @@ namespace TurismoConecta.web.Client.Services
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
         }
 
+        // Km y tiempo de la ruta. optimizar = la devuelve ordenada por cercanía (la 1.ª parada no se mueve). null = falló
+        public async Task<RutaEstimadaDto?> EstimarRutaAsync(IEnumerable<int> idsEnOrden, bool optimizar, CancellationToken ct = default)
+        {
+            try
+            {
+                return await _http.GetFromJsonAsync<RutaEstimadaDto>(
+                    $"api/recomendaciones/ruta?ids={string.Join(",", idsEnOrden)}&optimizar={(optimizar ? "true" : "false")}", ct);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
+
         // ---- "No me interesa" ----
         public async Task<bool> DescartarAsync(int idMunicipio, CancellationToken ct = default)
         {

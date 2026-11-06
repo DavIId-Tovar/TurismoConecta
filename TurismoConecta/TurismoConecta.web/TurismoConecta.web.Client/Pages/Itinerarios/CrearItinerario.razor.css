@@ -540,6 +540,83 @@
         color: #B4432D;
     }
 
+/* Resumen del viaje: paradas, días, km y tiempo (se recalcula en cada cambio) */
+.resumen-viaje {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+    transition: opacity 0.2s ease;
+}
+
+    .resumen-viaje.actualizando {
+        opacity: 0.55;
+    }
+
+.resumen-dato {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 6px;
+    border: 1px solid var(--borde-divisor);
+    border-radius: 14px;
+    background: var(--superficie);
+    text-align: center;
+}
+
+    .resumen-dato strong {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 1.35rem;
+        line-height: 1.1;
+        color: var(--acento-bosque);
+    }
+
+    .resumen-dato span {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: var(--texto-secundario);
+    }
+
+@media (max-width: 480px) {
+    .resumen-viaje {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.resumen-viaje + .sorpresa-aviso,
+.sorpresa-aviso + .sorpresa-aviso {
+    margin-bottom: 10px;
+}
+
+/* Orden automático por cercanía / orden propio */
+.orden-ruta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    margin-bottom: 12px;
+    font-size: 0.78rem;
+    color: var(--texto-secundario);
+}
+
+    .orden-ruta i {
+        color: var(--acento-bosque);
+    }
+
+/* Tramo desde la parada anterior */
+.parada-tramo {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    font-size: 0.74rem;
+    color: var(--acento-tierra);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Razón de la sorpresa en cada parada */
 .parada-razon {
     display: block;

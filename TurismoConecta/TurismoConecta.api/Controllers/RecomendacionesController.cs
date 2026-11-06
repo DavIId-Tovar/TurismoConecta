@@ -64,6 +64,16 @@ namespace TurismoConecta.api.Controllers
             [FromQuery] int dias = 3, [FromQuery] int variante = 0, [FromQuery] string? etiquetas = null, CancellationToken ct = default) =>
             Ok(await _recomendacionService.SorprendemeAsync(UsuarioOpcional, LeerIds(etiquetas), dias, variante, ct));
 
+        /// <summary>
+        /// Km y tiempo estimados de una ruta ("4,1,2"): resumen de Crear itinerario.
+        /// optimizar=true la devuelve ordenada por cercanía (la primera parada se queda como punto de partida).
+        /// </summary>
+        [HttpGet("ruta")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(RutaEstimadaDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> EstimarRuta([FromQuery] string? ids, [FromQuery] bool optimizar = false, CancellationToken ct = default) =>
+            Ok(await _recomendacionService.EstimarRutaAsync(LeerIds(ids).Take(30).ToList(), optimizar, ct));
+
         /// <summary>Los gustos guardados del usuario en sesión.</summary>
         [HttpGet("preferencias")]
         [Authorize]
