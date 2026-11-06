@@ -214,6 +214,105 @@ namespace TurismoConecta.api.Services
             return propuesta;
         }
 
+        /// <summary>
+        /// Km y tiempo estimados de una ruta en el orden dado (para el resumen de Crear itinerario).
+        /// Los municipios sin coordenadas se saltan: el tramo se mide desde la última parada con ubicación.
+        /// </summary>
+        public async Task<RutaEstimadaDto> EstimarRutaAsync(List<int> idsEnOrden, bool optimizar, CancellationToken ct = default)
+        {
+            var resultado = new RutaEstimadaDto();
+            if (idsEnOrden.Count == 0) return resultado;
+
+            var porId = (await CargarCandidatosAsync(ct))
+                .Where(c => idsEnOrden.Contains(c.IdMunicipio))
+                .ToDictionary(c => c.IdMunicipio);
+
+            // Orden por cercanía: la primera parada con ubicación es el punto de partida;
+            // las que no tienen coordenadas van al final, en el orden en que estaban
+            if (optimizar)
+            {
+                var conUbicacion = idsEnOrden.Where(id => porId.TryGetValue(id, out var m) && m.TieneUbicacion).Select(id => porId[id]).ToList();
+                var sinUbicacion = idsEnOrden.Where(id => porId.TryGetValue(id, out var m) && !m.TieneUbicacion);
+
+                idsEnOrden = OrdenarPorCercania(conUbicacion).Select(c => c.IdMunicipio).Concat(sinUbicacion).ToList();
+            }
+
+            Candidato? anterior = null;
+            foreach (var id in idsEnOrden)
+            {
+                if (!porId.TryGetValue(id, out var municipio)) continue;
+
+                var tramo = new TramoRutaDto { IdMunicipio = id };
+
+                if (!municipio.TieneUbicacion)
+                {
+                    resultado.SinUbicacion.Add(municipio.Nombre);
+                }
+                else
+                {
+                    if (anterior is not null)
+                    {
+                        var (km, minutos) = EstimarTramo(DistanciaKm(anterior, municipio));
+                        tramo.KmDesdeAnterior = km;
+                        tramo.MinutosDesdeAnterior = minutos;
+                        tramo.DesdeNombre = anterior.Nombre;
+                    }
+                    anterior = municipio;
+                }
+
+                resultado.Tramos.Add(tramo);
+            }
+
+            resultado.KmTotal = resultado.Tramos.Sum(t => t.KmDesdeAnterior ?? 0);
+            resultado.MinutosTotal = resultado.Tramos.Sum(t => t.MinutosDesdeAnterior ?? 0);
+            return resultado;
+        }
+
+        /// <summary>
+        /// Ruta más corta que pasa por todas las paradas empezando por la primera (no vuelve al inicio).
+        /// 1) Vecino más cercano: desde cada parada se va a la más cercana que falte.
+        /// 2) Mejora 2-opt: invierte tramos mientras eso acorte el total (quita los cruces de la ruta).
+        /// Con las pocas paradas de un viaje (máx. 30) es instantáneo.
+        /// </summary>
+        private static List<Candidato> OrdenarPorCercania(List<Candidato> paradas)
+        {
+            if (paradas.Count <= 2) return paradas;
+
+            var ruta = new List<Candidato> { paradas[0] };
+            var faltan = paradas.Skip(1).ToList();
+            while (faltan.Count > 0)
+            {
+                var siguiente = faltan.MinBy(p => DistanciaKm(ruta[^1], p))!;
+                ruta.Add(siguiente);
+                faltan.Remove(siguiente);
+            }
+
+            var mejoro = true;
+            while (mejoro)
+            {
+                mejoro = false;
+                for (var i = 1; i < ruta.Count - 1; i++)
+                {
+                    for (var k = i + 1; k < ruta.Count; k++)
+                    {
+                        // Invertir ruta[i..k]: cambian el tramo que entra a i y el que sale de k
+                        var antes = DistanciaKm(ruta[i - 1], ruta[i])
+                                  + (k + 1 < ruta.Count ? DistanciaKm(ruta[k], ruta[k + 1]) : 0);
+                        var despues = DistanciaKm(ruta[i - 1], ruta[k])
+                                    + (k + 1 < ruta.Count ? DistanciaKm(ruta[i], ruta[k + 1]) : 0);
+
+                        if (despues < antes - 0.01)
+                        {
+                            ruta.Reverse(i, k - i + 1);
+                            mejoro = true;
+                        }
+                    }
+                }
+            }
+
+            return ruta;
+        }
+
         /// <summary>Perfil de gustos a partir de etiquetas marcadas en pantalla (sin sesión).</summary>
         private static Dictionary<int, AporteEtiqueta> PerfilPorGustos(List<Candidato> candidatos, List<int> idsEtiquetas)
         {

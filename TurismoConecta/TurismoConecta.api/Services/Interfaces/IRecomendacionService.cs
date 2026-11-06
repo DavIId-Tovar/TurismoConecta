@@ -9,6 +9,7 @@ namespace TurismoConecta.api.Services.Interfaces
         Task<List<RecomendacionDto>> SimilaresAsync(int idMunicipio, int? idUsuario, int cantidad, CancellationToken ct = default);
         Task<List<RecomendacionDto>> CercaAsync(int idMunicipio, int? idUsuario, List<int> excluir, int cantidad, CancellationToken ct = default);
         Task<PropuestaItinerarioDto> SorprendemeAsync(int? idUsuario, List<int> idsEtiquetas, int dias, int variante, CancellationToken ct = default);
+        Task<RutaEstimadaDto> EstimarRutaAsync(List<int> idsEnOrden, bool optimizar, CancellationToken ct = default);
         Task<List<int>> ObtenerPreferenciasAsync(int idUsuario, CancellationToken ct = default);
         Task<(bool exito, string? error)> GuardarPreferenciasAsync(int idUsuario, List<int> idsEtiquetas, CancellationToken ct = default);
         Task<(bool exito, string? error)> DescartarAsync(int idUsuario, int idMunicipio, CancellationToken ct = default);

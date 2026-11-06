@@ -370,21 +370,17 @@
                                 </div>
                             </div>
                         }
-                        else if (propuesta is not null && RutaEsLaPropuesta)
+                        else if (propuesta is not null && RutaVieneDeSorpresa)
                         {
                             <div class="sorpresa-resumen">
                                 <span class="sorpresa-titulo"><i class="ph-fill ph-sparkle" aria-hidden="true"></i> Ruta sorpresa</span>
                                 <span class="sorpresa-datos">
-                                    @propuesta.Paradas.Count parada@(propuesta.Paradas.Count != 1 ? "s" : "")
-                                    @if (propuesta.KmTotal > 0)
-                                    {
-                                        <span> · ~@propuesta.KmTotal km · @Duracion(propuesta.MinutosTotal) de carretera</span>
-                                    }
+                                    @(RutaEsLaPropuesta ? "Tal como la armamos para ti" : "Con tus cambios")
                                 </span>
                                 @if (propuesta.OpcionesDeInicio > 1)
                                 {
                                     <button type="button" class="sorpresa-btn-texto" disabled="@generandoSorpresa"
-                                            @onclick="() => GenerarSorpresaAsync(varianteSorpresa + 1)">
+                                            @onclick="() => PedirSorpresaAsync(varianteSorpresa + 1)">
                                         <i class="ph ph-shuffle" aria-hidden="true"></i>
                                         @(generandoSorpresa ? "Buscando…" : "Otra sorpresa")
                                     </button>
@@ -414,6 +410,60 @@
                             <p class="sorpresa-aviso error"><i class="ph ph-warning-circle" aria-hidden="true"></i> @errorSorpresa</p>
                         }
                     </div>
+
+                    @* ============ RESUMEN DEL VIAJE: se recalcula al agregar, quitar o mover paradas ============ *@
+                    @if (municipiosSeleccionados.Any())
+                    {
+                        <div class="resumen-viaje @(calculandoRuta ? "actualizando" : "")" aria-live="polite">
+                            <div class="resumen-dato">
+                                <strong>@municipiosSeleccionados.Count</strong>
+                                <span>parada@(municipiosSeleccionados.Count != 1 ? "s" : "")</span>
+                            </div>
+                            <div class="resumen-dato">
+                                <strong>@DiasDelViajeReales</strong>
+                                <span>día@(DiasDelViajeReales != 1 ? "s" : "")</span>
+                            </div>
+                            <div class="resumen-dato">
+                                <strong>@(rutaEstimada is null ? "—" : $"~{rutaEstimada.KmTotal}")</strong>
+                                <span>km</span>
+                            </div>
+                            <div class="resumen-dato">
+                                <strong>@(rutaEstimada is null ? "—" : Duracion(rutaEstimada.MinutosTotal))</strong>
+                                <span>de carretera</span>
+                            </div>
+                        </div>
+                        @if (municipiosSeleccionados.Count > 2)
+                        {
+                            <div class="orden-ruta">
+                                @if (ordenAutomatico)
+                                {
+                                    <span>
+                                        <i class="ph ph-path" aria-hidden="true"></i>
+                                        Ordenada por cercanía desde <strong>@municipiosSeleccionados[0].Nombre</strong>.
+                                        Mueve una parada con ↑↓ para elegir tu propio orden.
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span><i class="ph ph-hand-pointing" aria-hidden="true"></i> Estás usando tu propio orden.</span>
+                                    <button type="button" class="sorpresa-btn-texto" @onclick="ActivarOrdenAutomatico">
+                                        <i class="ph ph-path" aria-hidden="true"></i> Ordenar por cercanía
+                                    </button>
+                                }
+                            </div>
+                        }
+                        @if (rutaEstimada?.SinUbicacion.Any() == true)
+                        {
+                            <p class="sorpresa-aviso">
+                                <i class="ph ph-info" aria-hidden="true"></i>
+                                Sin ubicación registrada (no suma km): @string.Join(", ", rutaEstimada.SinUbicacion)
+                            </p>
+                        }
+                        @if (avisoFechas is not null)
+                        {
+                            <p class="sorpresa-aviso"><i class="ph ph-calendar-plus" aria-hidden="true"></i> @avisoFechas</p>
+                        }
+                    }
 
                     @if (municipiosSeleccionados.Any())
                     {
@@ -450,6 +500,14 @@
                                             </svg>
                                             @(string.IsNullOrWhiteSpace(muni.Clima) ? "Clima de montaña" : muni.Clima)
                                         </span>
+                                        @* Tramo desde la parada anterior (se recalcula al mover paradas) *@
+                                        @if (TramoDe(muni.IdMunicipio) is { KmDesdeAnterior: int kmTramo } tramo)
+                                        {
+                                            <span class="parada-tramo">
+                                                <i class="ph ph-car-simple" aria-hidden="true"></i>
+                                                ~@kmTramo km · @Duracion(tramo.MinutosDesdeAnterior ?? 0) desde @tramo.DesdeNombre
+                                            </span>
+                                        }
                                         @* Por qué la eligió "Sorpréndeme" *@
                                         @if (razonesSorpresa.TryGetValue(muni.IdMunicipio, out var razonSorpresa))
                                         {
@@ -559,9 +617,30 @@
             ? Math.Clamp(fin.DayNumber - inicio.DayNumber + 1, 1, 7)
             : 3;
 
-    // El resumen (km, tiempo) solo vale mientras la ruta siga igual a la propuesta
+    // La ruta en pantalla tiene los mismos pueblos que propuso "Sorpréndeme" (el orden por cercanía no cuenta como cambio)
     private bool RutaEsLaPropuesta => propuesta is not null
-        && municipiosSeleccionados.Select(m => m.IdMunicipio).SequenceEqual(propuesta.Paradas.Select(p => p.IdMunicipio));
+        && municipiosSeleccionados.Select(m => m.IdMunicipio).ToHashSet().SetEquals(propuesta.Paradas.Select(p => p.IdMunicipio));
+
+    // Sigue siendo "la sorpresa" mientras conserve alguna de sus paradas, aunque el usuario agregue o mueva
+    private bool RutaVieneDeSorpresa => municipiosSeleccionados.Any(m => razonesSorpresa.ContainsKey(m.IdMunicipio));
+
+    // Resumen del viaje: km y tiempo de la ruta tal como está, recalculado en cada cambio de paradas
+    private RutaEstimadaDto? rutaEstimada;
+    private bool calculandoRuta;
+    private string? avisoFechas;
+
+    // true: al agregar o quitar, las paradas se reordenan por cercanía (la primera es el punto de partida).
+    // Se apaga cuando el usuario mueve una parada con ↑↓
+    private bool ordenAutomatico = true;
+    private CancellationTokenSource? _ctsRuta;
+
+    private int DiasDelViajeReales =>
+        modelo.FechaInicio is DateOnly inicio && modelo.FechaFin is DateOnly fin && fin >= inicio
+            ? fin.DayNumber - inicio.DayNumber + 1
+            : municipiosSeleccionados.Count;
+
+    private TramoRutaDto? TramoDe(int idMunicipio) =>
+        rutaEstimada?.Tramos.FirstOrDefault(t => t.IdMunicipio == idMunicipio);
 
     // Fotos Wikipedia — respaldo cuando la API no tiene imagen
     private Dictionary<int, string> fotosWikipedia = new();
@@ -791,6 +870,7 @@
 
             propuesta = resultado;
             varianteSorpresa = variante;
+            ordenAutomatico = true;
             SincronizarParadas();
             _ = CargarFotosWikipedia();
         }
@@ -910,6 +990,17 @@
 
     private void SincronizarParadas()
     {
+        ReconstruirParadas();
+
+        // Cada cambio de paradas (agregar, quitar, mover, sorpresa) actualiza los datos del viaje
+        AjustarFechasALasParadas();
+        RenombrarRutaSorpresa();
+        _ = RecalcularRutaAsync();
+    }
+
+    // Día y orden de cada parada según su posición en la lista (una parada por día)
+    private void ReconstruirParadas()
+    {
         modelo.Paradas.Clear();
         for (int i = 0; i < municipiosSeleccionados.Count; i++)
         {
@@ -922,12 +1013,91 @@
         }
     }
 
+    /// <summary>"Ordenar por cercanía": vuelve a activar el orden automático y reorganiza ya.</summary>
+    private void ActivarOrdenAutomatico()
+    {
+        ordenAutomatico = true;
+        SincronizarParadas();
+    }
+
+    /// <summary>Una parada por día: si ya hay más paradas que días, se alarga la fecha de regreso.</summary>
+    private void AjustarFechasALasParadas()
+    {
+        avisoFechas = null;
+        if (modelo.FechaInicio is not DateOnly inicio) return;
+
+        var dias = modelo.FechaFin is DateOnly fin && fin >= inicio ? fin.DayNumber - inicio.DayNumber + 1 : 0;
+        if (municipiosSeleccionados.Count <= dias) return;
+
+        modelo.FechaFin = inicio.AddDays(municipiosSeleccionados.Count - 1);
+        avisoFechas = $"Ajustamos el regreso al {modelo.FechaFin:dd/MM/yyyy}: un día por cada parada.";
+    }
+
+    /// <summary>Si el nombre sigue siendo el que puso "Sorpréndeme", su recorrido se actualiza con las paradas nuevas.</summary>
+    private void RenombrarRutaSorpresa()
+    {
+        if (nombreSorpresa is null || modelo.Nombre != nombreSorpresa || !municipiosSeleccionados.Any()) return;
+
+        var nombres = municipiosSeleccionados.Select(m => m.Nombre).ToList();
+        var recorrido = nombres.Count <= 3 ? string.Join(" → ", nombres) : $"{nombres[0]} → … → {nombres[^1]}";
+
+        // "Ruta de Gastronomía: …" conserva su tema; solo cambia lo que va después de los dos puntos
+        var separador = nombreSorpresa.IndexOf(": ", StringComparison.Ordinal);
+        var tema = separador > 0 ? nombreSorpresa[..separador] : "Ruta sorpresa";
+
+        var nuevo = $"{tema}: {recorrido}";
+        modelo.Nombre = nombreSorpresa = nuevo.Length <= 150 ? nuevo : nuevo[..150];
+    }
+
+    private async Task RecalcularRutaAsync()
+    {
+        // Si el usuario hace varios cambios seguidos, solo cuenta la respuesta del último
+        _ctsRuta?.Cancel();
+        _ctsRuta = new CancellationTokenSource();
+        var token = _ctsRuta.Token;
+
+        if (!municipiosSeleccionados.Any())
+        {
+            rutaEstimada = null;
+            return;
+        }
+
+        calculandoRuta = true;
+        await InvokeAsync(StateHasChanged);
+
+        var resultado = await RecoService.EstimarRutaAsync(municipiosSeleccionados.Select(m => m.IdMunicipio), ordenAutomatico, token);
+        if (token.IsCancellationRequested) return;
+
+        // Orden automático: la lista se acomoda al orden por cercanía que devolvió el API
+        if (resultado is not null && ordenAutomatico)
+            AplicarOrden(resultado.Tramos.Select(t => t.IdMunicipio).ToList());
+
+        rutaEstimada = resultado ?? rutaEstimada;   // si falla, se deja el último cálculo
+        calculandoRuta = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Reordena las paradas como dice el API; las que no vinieron (inactivas) quedan al final.</summary>
+    private void AplicarOrden(List<int> idsEnOrden)
+    {
+        var actual = municipiosSeleccionados.Select(m => m.IdMunicipio).ToList();
+        var nuevo = idsEnOrden.Where(actual.Contains).Concat(actual.Where(id => !idsEnOrden.Contains(id))).ToList();
+        if (nuevo.SequenceEqual(actual)) return;
+
+        municipiosSeleccionados = nuevo.Select(id => municipiosSeleccionados.First(m => m.IdMunicipio == id)).ToList();
+        ReconstruirParadas();
+        RenombrarRutaSorpresa();
+    }
+
     private void MoverParada(int index, int dir)
     {
         int ni = index + dir;
         if (ni < 0 || ni >= municipiosSeleccionados.Count) return;
         (municipiosSeleccionados[index], municipiosSeleccionados[ni]) =
             (municipiosSeleccionados[ni], municipiosSeleccionados[index]);
+
+        // El usuario eligió su orden a mano: se respeta hasta que pulse "Ordenar por cercanía"
+        ordenAutomatico = false;
         SincronizarParadas();
     }
 
