@@ -8,6 +8,7 @@
 @inject NavigationManager Nav
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 
 <HeadContent>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -357,6 +358,63 @@
                         </div>
                     </div>
 
+                    @* ============ SORPRÉNDEME: arma la ruta con las recomendaciones ============ *@
+                    <div class="sorpresa-barra" aria-live="polite">
+                        @if (confirmandoSorpresa)
+                        {
+                            <div class="sorpresa-confirmar">
+                                <span>Esto reemplaza tus @municipiosSeleccionados.Count parada(s) actuales. ¿Continuar?</span>
+                                <div class="sorpresa-botones">
+                                    <button type="button" class="sorpresa-btn" @onclick="() => GenerarSorpresaAsync(variantePendiente)">Sí, sorpréndeme</button>
+                                    <button type="button" class="sorpresa-btn-texto" @onclick="() => confirmandoSorpresa = false">Cancelar</button>
+                                </div>
+                            </div>
+                        }
+                        else if (propuesta is not null && RutaEsLaPropuesta)
+                        {
+                            <div class="sorpresa-resumen">
+                                <span class="sorpresa-titulo"><i class="ph-fill ph-sparkle" aria-hidden="true"></i> Ruta sorpresa</span>
+                                <span class="sorpresa-datos">
+                                    @propuesta.Paradas.Count parada@(propuesta.Paradas.Count != 1 ? "s" : "")
+                                    @if (propuesta.KmTotal > 0)
+                                    {
+                                        <span> · ~@propuesta.KmTotal km · @Duracion(propuesta.MinutosTotal) de carretera</span>
+                                    }
+                                </span>
+                                @if (propuesta.OpcionesDeInicio > 1)
+                                {
+                                    <button type="button" class="sorpresa-btn-texto" disabled="@generandoSorpresa"
+                                            @onclick="() => GenerarSorpresaAsync(varianteSorpresa + 1)">
+                                        <i class="ph ph-shuffle" aria-hidden="true"></i>
+                                        @(generandoSorpresa ? "Buscando…" : "Otra sorpresa")
+                                    </button>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(propuesta.Aviso))
+                            {
+                                <p class="sorpresa-aviso"><i class="ph ph-info" aria-hidden="true"></i> @propuesta.Aviso</p>
+                            }
+                        }
+                        else
+                        {
+                            <button type="button" class="sorpresa-btn sorpresa-btn-principal" disabled="@generandoSorpresa"
+                                    @onclick="() => PedirSorpresaAsync(0)">
+                                <i class="ph-fill ph-sparkle" aria-hidden="true"></i>
+                                @(generandoSorpresa ? "Armando tu ruta…" : "Sorpréndeme")
+                            </button>
+                            <span class="sorpresa-ayuda">
+                                @(municipiosSeleccionados.Any()
+                                    ? "Arma otra ruta con tus recomendaciones."
+                                    : $"¿No sabes por dónde empezar? Armamos una ruta de {DiasDelViaje} día(s) con lo que te gusta.")
+                            </span>
+                        }
+
+                        @if (errorSorpresa is not null)
+                        {
+                            <p class="sorpresa-aviso error"><i class="ph ph-warning-circle" aria-hidden="true"></i> @errorSorpresa</p>
+                        }
+                    </div>
+
                     @if (municipiosSeleccionados.Any())
                     {
                         <div class="lista-paradas-cards">
@@ -392,6 +450,13 @@
                                             </svg>
                                             @(string.IsNullOrWhiteSpace(muni.Clima) ? "Clima de montaña" : muni.Clima)
                                         </span>
+                                        @* Por qué la eligió "Sorpréndeme" *@
+                                        @if (razonesSorpresa.TryGetValue(muni.IdMunicipio, out var razonSorpresa))
+                                        {
+                                            <span class="parada-razon" title="@razonSorpresa">
+                                                <i class="ph-fill ph-sparkle" aria-hidden="true"></i> @razonSorpresa
+                                            </span>
+                                        }
                                     </div>
 
                                     <div class="parada-acciones" @onclick:stopPropagation="true">
@@ -452,6 +517,10 @@
     [SupplyParameterFromQuery]
     public string? Municipios { get; set; }
 
+    // ?sorpresa=1 (desde Inicio): la ruta se arma sola al abrir la página
+    [SupplyParameterFromQuery]
+    public int? Sorpresa { get; set; }
+
     private ItinerarioCreateRequest modelo = new();
     private List<MunicipioFichaDto> municipiosSeleccionados = new();
 
@@ -472,6 +541,27 @@
     private HashSet<int> idsOcultados = new();
     private int? idReincorporando;
     private int versionOcultados;   // al cambiar, "Queda cerca" se recalcula
+
+    // "Sorpréndeme"
+    private const string ClaveGustosLocales = "tc_gustos";   // los mismos que guarda <ParaTi /> sin sesión
+    private PropuestaItinerarioDto? propuesta;
+    private Dictionary<int, string> razonesSorpresa = new();
+    private int varianteSorpresa;
+    private int variantePendiente;
+    private bool generandoSorpresa;
+    private bool confirmandoSorpresa;
+    private string? errorSorpresa;
+    private string? nombreSorpresa;   // si el usuario no lo cambió, "Otra sorpresa" lo reemplaza
+
+    // Una parada por día: los días salen de las fechas del formulario (3 si no son válidas)
+    private int DiasDelViaje =>
+        modelo.FechaInicio is DateOnly inicio && modelo.FechaFin is DateOnly fin && fin >= inicio
+            ? Math.Clamp(fin.DayNumber - inicio.DayNumber + 1, 1, 7)
+            : 3;
+
+    // El resumen (km, tiempo) solo vale mientras la ruta siga igual a la propuesta
+    private bool RutaEsLaPropuesta => propuesta is not null
+        && municipiosSeleccionados.Select(m => m.IdMunicipio).SequenceEqual(propuesta.Paradas.Select(p => p.IdMunicipio));
 
     // Fotos Wikipedia — respaldo cuando la API no tiene imagen
     private Dictionary<int, string> fotosWikipedia = new();
@@ -629,9 +719,104 @@
 
         cargandoInicial = false;
 
+        // Viene de "Sorpréndeme con una ruta" en Inicio
+        if (Sorpresa is not null && !municipiosSeleccionados.Any())
+            await GenerarSorpresaAsync(0);
+
         // Wikipedia solo para municipios sin imagen en la API — no bloquea la UI
         _ = CargarFotosWikipedia();
     }
+
+    // ──────────────────────────────────────────────────────────────
+    // SORPRÉNDEME
+    // ──────────────────────────────────────────────────────────────
+
+    /// <summary>Si ya hay paradas que no vienen de una sorpresa, primero se confirma el reemplazo.</summary>
+    private async Task PedirSorpresaAsync(int variante)
+    {
+        if (municipiosSeleccionados.Any() && !RutaEsLaPropuesta)
+        {
+            variantePendiente = variante;
+            confirmandoSorpresa = true;
+            return;
+        }
+
+        await GenerarSorpresaAsync(variante);
+    }
+
+    private async Task GenerarSorpresaAsync(int variante)
+    {
+        confirmandoSorpresa = false;
+        generandoSorpresa = true;
+        errorSorpresa = null;
+        StateHasChanged();
+
+        try
+        {
+            // Sin sesión, los gustos que marcó en el Inicio (en este navegador)
+            var gustos = usuarioAutenticado ? null : await LeerGustosLocalesAsync();
+            var resultado = await RecoService.SorprendemeAsync(DiasDelViaje, variante, gustos);
+
+            if (resultado is null)
+            {
+                errorSorpresa = "No pudimos armar la ruta. Inténtalo de nuevo.";
+                return;
+            }
+
+            if (resultado.Paradas.Count == 0)
+            {
+                errorSorpresa = resultado.Aviso ?? "Aún no hay destinos para armar una ruta.";
+                return;
+            }
+
+            // Las fichas completas (clima, foto, historia) para las tarjetas de parada, todas a la vez
+            var fichas = await Task.WhenAll(resultado.Paradas.Select(p => MuniApi.ObtenerFichaAsync(p.IdMunicipio)));
+            var encontradas = fichas.Where(f => f is not null).Select(f => f!).ToList();
+
+            // Si alguna ficha no cargó, la propuesta se recorta para que el resumen siga siendo cierto
+            resultado.Paradas = resultado.Paradas.Where(p => encontradas.Any(f => f.IdMunicipio == p.IdMunicipio)).ToList();
+
+            municipiosSeleccionados = resultado.Paradas
+                .Select(p => encontradas.First(f => f.IdMunicipio == p.IdMunicipio))
+                .ToList();
+            razonesSorpresa = resultado.Paradas.ToDictionary(p => p.IdMunicipio, p => p.Razon);
+            municipioModal = null;
+
+            // El nombre se propone solo si está vacío o si era el de la sorpresa anterior
+            if (string.IsNullOrWhiteSpace(modelo.Nombre) || modelo.Nombre == nombreSorpresa)
+            {
+                modelo.Nombre = resultado.Nombre;
+                nombreSorpresa = resultado.Nombre;
+            }
+
+            propuesta = resultado;
+            varianteSorpresa = variante;
+            SincronizarParadas();
+            _ = CargarFotosWikipedia();
+        }
+        finally
+        {
+            generandoSorpresa = false;
+        }
+    }
+
+    private async Task<List<int>> LeerGustosLocalesAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("localStorage.getItem", ClaveGustosLocales);
+            return string.IsNullOrWhiteSpace(json)
+                ? new()
+                : System.Text.Json.JsonSerializer.Deserialize<List<int>>(json) ?? new();
+        }
+        catch
+        {
+            return new();   // modo privado o dato dañado: sorpresa con los mejor calificados
+        }
+    }
+
+    private static string Duracion(int minutos) =>
+        minutos < 60 ? $"{minutos} min" : $"{minutos / 60} h {minutos % 60:00} min";
 
     // ──────────────────────────────────────────────────────────────
     // MODALES

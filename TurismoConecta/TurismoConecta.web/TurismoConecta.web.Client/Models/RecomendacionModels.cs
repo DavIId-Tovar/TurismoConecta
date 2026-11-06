@@ -66,6 +66,33 @@ namespace TurismoConecta.web.Client.Models
         public List<string> MasDescartados { get; set; } = new();
     }
 
+    // "Sorpréndeme": ruta propuesta que llena el formulario de Crear itinerario
+    public class PropuestaItinerarioDto
+    {
+        public string Nombre { get; set; } = "";
+        public int DiasPedidos { get; set; }
+        public List<ParadaPropuestaDto> Paradas { get; set; } = new();
+        public int KmTotal { get; set; }
+        public int MinutosTotal { get; set; }
+        public int OpcionesDeInicio { get; set; }
+        public string? Aviso { get; set; }
+    }
+
+    public class ParadaPropuestaDto
+    {
+        public int IdMunicipio { get; set; }
+        public string Nombre { get; set; } = "";
+        public string? ImagenUrl { get; set; }
+        public List<string> Etiquetas { get; set; } = new();
+        public double? PromedioCalificacion { get; set; }
+        public int TotalResenas { get; set; }
+        public int DiaNumero { get; set; }
+        public string Razon { get; set; } = "";
+        public string TipoRazon { get; set; } = TiposRazon.Nuevo;
+        public int? KmDesdeAnterior { get; set; }
+        public int? MinutosDesdeAnterior { get; set; }
+    }
+
     // Un municipio que el usuario ocultó con "No me interesa" (se lista en su Perfil)
     public class MunicipioDescartadoDto
     {

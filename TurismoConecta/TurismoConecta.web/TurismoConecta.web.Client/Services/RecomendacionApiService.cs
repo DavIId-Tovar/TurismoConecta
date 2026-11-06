@@ -30,6 +30,20 @@ namespace TurismoConecta.web.Client.Services
             return ObtenerListaAsync($"api/recomendaciones/cerca/{idMunicipio}?cantidad={cantidad}{filtro}", ct);
         }
 
+        // "Sorpréndeme": ruta de una parada por día. Sin sesión se le pasan los gustos del navegador. null = falló
+        public async Task<PropuestaItinerarioDto?> SorprendemeAsync(int dias, int variante, IEnumerable<int>? idsEtiquetas = null, CancellationToken ct = default)
+        {
+            var ids = string.Join(",", idsEtiquetas ?? Enumerable.Empty<int>());
+            var filtro = ids.Length > 0 ? $"&etiquetas={ids}" : "";
+
+            try
+            {
+                return await _http.GetFromJsonAsync<PropuestaItinerarioDto>(
+                    $"api/recomendaciones/sorprendeme?dias={dias}&variante={variante}{filtro}", ct);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+        }
+
         // ---- "No me interesa" ----
         public async Task<bool> DescartarAsync(int idMunicipio, CancellationToken ct = default)
         {

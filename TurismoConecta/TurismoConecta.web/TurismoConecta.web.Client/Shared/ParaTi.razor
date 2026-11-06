@@ -146,6 +146,18 @@
         }
     </div>
 
+    @* Sorpréndeme: Crear itinerario arma sola una ruta con estas recomendaciones *@
+    @if (recomendaciones.Any() && !huboError)
+    {
+        <div class="para-ti-sorpresa">
+            <a href="/itinerarios/crear?sorpresa=1" class="para-ti-sorpresa-btn">
+                <i class="ph-fill ph-sparkle" aria-hidden="true"></i>
+                Sorpréndeme con una ruta
+            </a>
+            <span>Armamos un itinerario con lo que te gusta, en un orden que tenga sentido en carretera.</span>
+        </div>
+    }
+
     @if (!autenticado)
     {
         <p class="para-ti-cta">

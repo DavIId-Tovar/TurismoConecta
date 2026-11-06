@@ -52,6 +52,18 @@ namespace TurismoConecta.api.Controllers
         public async Task<IActionResult> Cerca(int idMunicipio, [FromQuery] string? excluir, [FromQuery] int cantidad = 4, CancellationToken ct = default) =>
             Ok(await _recomendacionService.CercaAsync(idMunicipio, UsuarioOpcional, LeerIds(excluir), cantidad, ct));
 
+        /// <summary>
+        /// "Sorpréndeme": propone una ruta de una parada por día con los mejores destinos para el usuario.
+        /// Con sesión usa su perfil completo; sin sesión, los gustos marcados ("1,4"). variante = "Otra sorpresa".
+        /// No guarda nada: el cliente llena el formulario de Crear itinerario.
+        /// </summary>
+        [HttpGet("sorprendeme")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(PropuestaItinerarioDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Sorprendeme(
+            [FromQuery] int dias = 3, [FromQuery] int variante = 0, [FromQuery] string? etiquetas = null, CancellationToken ct = default) =>
+            Ok(await _recomendacionService.SorprendemeAsync(UsuarioOpcional, LeerIds(etiquetas), dias, variante, ct));
+
         /// <summary>Los gustos guardados del usuario en sesión.</summary>
         [HttpGet("preferencias")]
         [Authorize]

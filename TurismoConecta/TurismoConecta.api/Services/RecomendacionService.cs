@@ -44,6 +44,12 @@ namespace TurismoConecta.api.Services
         private const double FactorCarretera = 1.3;         // la carretera es ~30 % más larga que la línea recta
         private const double VelocidadPromedioKmH = 45;     // vías de montaña en Boyacá
 
+        // ---- "Sorpréndeme" ----
+        private const int MaximoDiasSorpresa = 7;
+        private const int OpcionesDeInicio = 3;             // "Otra sorpresa" rota el inicio entre las 3 mejores
+        private const double PesoGustoEnRuta = 0.6;
+        private const double PesoCercaniaEnRuta = 0.4;
+
         private readonly AppDbContext _context;
         private readonly ModeloColaborativo _modelo;
         private readonly double _radioCercaKm;
@@ -103,7 +109,114 @@ namespace TurismoConecta.api.Services
         {
             cantidad = Math.Clamp(cantidad, 1, 12);
             var candidatos = await CargarCandidatosAsync(ct);
+            var perfil = PerfilPorGustos(candidatos, idsEtiquetas);
 
+            return Clasificar(candidatos, perfil, new HashSet<int>(), cantidad, idUsuario: null);
+        }
+
+        /// <summary>
+        /// "Sorpréndeme": arma una ruta de una parada por día con los mejores destinos para el usuario,
+        /// en un orden que evita ir y volver (cada parada combina gusto 60 % + cercanía a la anterior 40 %).
+        /// variante cambia el punto de partida entre las mejores opciones ("Otra sorpresa").
+        /// </summary>
+        public async Task<PropuestaItinerarioDto> SorprendemeAsync(
+            int? idUsuario, List<int> idsEtiquetas, int dias, int variante, CancellationToken ct = default)
+        {
+            dias = Math.Clamp(dias, 1, MaximoDiasSorpresa);
+            var candidatos = await CargarCandidatosAsync(ct);
+
+            Dictionary<int, AporteEtiqueta> perfil;
+            var conocidos = new HashSet<int>();
+
+            if (idUsuario is int id)
+            {
+                (perfil, conocidos, var descartados) = await ConstruirPerfilAsync(id, candidatos, ct);
+                candidatos.RemoveAll(c => descartados.Contains(c.IdMunicipio));
+            }
+            else
+            {
+                perfil = PerfilPorGustos(candidatos, idsEtiquetas);
+            }
+
+            // Sin coordenadas no se puede ordenar la ruta ni calcular tramos
+            candidatos.RemoveAll(c => !c.TieneUbicacion);
+
+            var propuesta = new PropuestaItinerarioDto { DiasPedidos = dias };
+            if (candidatos.Count == 0)
+            {
+                propuesta.Aviso = "Aún no hay destinos con ubicación para armar una ruta.";
+                return propuesta;
+            }
+
+            var puntuados = Puntuar(candidatos, perfil, conocidos, idUsuario);
+            var maximo = Math.Max(puntuados[0].Puntaje, 0.0001);
+
+            // 1. Punto de partida: una de las mejores opciones, según la variante
+            var opcionesInicio = puntuados.Take(Math.Min(OpcionesDeInicio, puntuados.Count)).ToList();
+            var ruta = new List<Puntuado> { opcionesInicio[Math.Abs(variante) % opcionesInicio.Count] };
+            var restantes = puntuados.Where(p => p != ruta[0]).ToList();
+
+            // 2. Siguientes paradas: lo que más te gusta, sin alejarse demasiado de la parada anterior
+            while (ruta.Count < dias && restantes.Count > 0)
+            {
+                var anterior = ruta[^1].Municipio;
+                var siguiente = restantes.MaxBy(p =>
+                    PesoGustoEnRuta * (p.Puntaje / maximo)
+                    + PesoCercaniaEnRuta * Math.Clamp(1 - DistanciaKm(anterior, p.Municipio) / (2 * _radioCercaKm), 0, 1))!;
+
+                ruta.Add(siguiente);
+                restantes.Remove(siguiente);
+            }
+
+            // 3. Paradas con su razón y el tramo desde la anterior
+            for (var i = 0; i < ruta.Count; i++)
+            {
+                var p = ruta[i];
+                var (razon, tipo) = Explicar(p, perfil, conocidos, esJoya: false);
+                var parada = new ParadaPropuestaDto
+                {
+                    IdMunicipio = p.Municipio.IdMunicipio,
+                    Nombre = p.Municipio.Nombre,
+                    ImagenUrl = p.Municipio.ImagenUrl,
+                    Etiquetas = p.Municipio.Etiquetas.Values.ToList(),
+                    PromedioCalificacion = p.Municipio.Promedio,
+                    TotalResenas = p.Municipio.TotalResenas,
+                    DiaNumero = i + 1,
+                    Razon = razon,
+                    TipoRazon = tipo
+                };
+
+                if (i > 0)
+                {
+                    var (km, minutos) = EstimarTramo(DistanciaKm(ruta[i - 1].Municipio, p.Municipio));
+                    parada.KmDesdeAnterior = km;
+                    parada.MinutosDesdeAnterior = minutos;
+
+                    // Sin una razón personal, lo que lo explica es que queda de camino
+                    if (tipo == TiposRazon.Nuevo)
+                    {
+                        parada.Razon = $"Queda de camino: ~{km} km desde {ruta[i - 1].Municipio.Nombre}";
+                        parada.TipoRazon = TiposRazon.Cerca;
+                    }
+                }
+
+                propuesta.Paradas.Add(parada);
+            }
+
+            propuesta.KmTotal = propuesta.Paradas.Sum(p => p.KmDesdeAnterior ?? 0);
+            propuesta.MinutosTotal = propuesta.Paradas.Sum(p => p.MinutosDesdeAnterior ?? 0);
+            propuesta.Nombre = NombrarRuta(ruta, perfil);
+            propuesta.OpcionesDeInicio = opcionesInicio.Count;
+
+            if (ruta.Count < dias)
+                propuesta.Aviso = $"Por ahora hay {ruta.Count} destino(s) con ubicación para ti: la ruta tiene una parada por día hasta donde alcanza.";
+
+            return propuesta;
+        }
+
+        /// <summary>Perfil de gustos a partir de etiquetas marcadas en pantalla (sin sesión).</summary>
+        private static Dictionary<int, AporteEtiqueta> PerfilPorGustos(List<Candidato> candidatos, List<int> idsEtiquetas)
+        {
             var nombres = candidatos
                 .SelectMany(c => c.Etiquetas)
                 .GroupBy(e => e.Key)
@@ -113,7 +226,28 @@ namespace TurismoConecta.api.Services
             foreach (var idEtiqueta in idsEtiquetas.Distinct().Take(MaximoPreferencias))
                 Sumar(perfil, idEtiqueta, PesoGustoDeclarado, TiposRazon.Gusto, nombres.GetValueOrDefault(idEtiqueta, ""));
 
-            return Clasificar(candidatos, perfil, new HashSet<int>(), cantidad, idUsuario: null);
+            return perfil;
+        }
+
+        /// <summary>"Ruta de Artesanías: Ráquira → Villa de Leyva → Tunja" (la etiqueta que más te gusta de la ruta).</summary>
+        private static string NombrarRuta(List<Puntuado> ruta, Dictionary<int, AporteEtiqueta> perfil)
+        {
+            var etiquetas = ruta.SelectMany(p => p.Municipio.Etiquetas).ToList();
+
+            var tema = etiquetas
+                .GroupBy(e => e.Key)
+                .OrderByDescending(g => perfil.TryGetValue(g.Key, out var a) ? a.Peso : 0)
+                .ThenByDescending(g => g.Count())
+                .Select(g => g.First().Value)
+                .FirstOrDefault();
+
+            var nombres = ruta.Select(p => p.Municipio.Nombre).ToList();
+            var recorrido = nombres.Count <= 3
+                ? string.Join(" → ", nombres)
+                : $"{nombres[0]} → … → {nombres[^1]}";
+
+            var nombre = tema is null ? $"Ruta sorpresa: {recorrido}" : $"Ruta de {tema}: {recorrido}";
+            return nombre.Length <= 100 ? nombre : nombre[..100];
         }
 
         public async Task<List<RecomendacionDto>> SimilaresAsync(int idMunicipio, int? idUsuario, int cantidad, CancellationToken ct = default)
@@ -256,9 +390,7 @@ namespace TurismoConecta.api.Services
                 .Take(cantidad)
                 .Select(x =>
                 {
-                    // Estimación sin mapa: línea recta × factor de carretera, a velocidad de montaña
-                    var kmCarretera = (int)Math.Round(x.Km * FactorCarretera);
-                    var minutos = Math.Max(5, (int)Math.Round(kmCarretera / VelocidadPromedioKmH * 60 / 5) * 5);
+                    var (kmCarretera, minutos) = EstimarTramo(x.Km);
 
                     var dto = CrearDto(x.Municipio, x.Puntaje,
                         $"~{kmCarretera} km de {origen.Nombre} · {FormatoDuracion(minutos)}", TiposRazon.Cerca);
@@ -489,37 +621,10 @@ namespace TurismoConecta.api.Services
         // PUNTAJE, DIVERSIDAD Y RAZONES
         // ════════════════════════════════════════════════
         private List<RecomendacionDto> Clasificar(
-    List<Candidato> candidatos, Dictionary<int, AporteEtiqueta> perfil, HashSet<int> conocidos, int cantidad, int? idUsuario)
+            List<Candidato> candidatos, Dictionary<int, AporteEtiqueta> perfil, HashSet<int> conocidos, int cantidad, int? idUsuario)
         {
             var hayPerfil = perfil.Values.Any(a => a.Peso > 0);
-            var afinidades = CalcularAfinidades(candidatos, perfil);
-
-            var puntuados = candidatos
-                .Select(c =>
-                {
-                    var afinidad = afinidades[c.IdMunicipio];
-                    var novedad = conocidos.Contains(c.IdMunicipio) ? 0 : 1;
-
-                    // Lo que ML.NET estima que le daría este usuario (1-5★), llevado a 0-1. null si no lo conoce
-                    var colaborativo = idUsuario is int id && _modelo.Predecir(id, c.IdMunicipio) is double estimada
-                        ? (estimada - 1) / 4
-                        : (double?)null;
-
-                    var puntaje = (hayPerfil, colaborativo) switch
-                    {
-                        (true, double colab) => PesoAfinidadConModelo * afinidad + PesoCalidadConModelo * Calidad(c)
-                                              + PesoColaborativo * colab + PesoNovedadConModelo * novedad,
-                        (true, null) => PesoAfinidad * afinidad + PesoCalidad * Calidad(c) + PesoNovedad * novedad,
-                        (false, double colab) => 0.5 * colab + 0.4 * Calidad(c) + 0.1 * novedad,
-                        // Sin gustos ni modelo: lo mejor calificado por los viajeros
-                        (false, null) => 0.85 * Calidad(c) + 0.15 * novedad
-                    };
-
-                    return new Puntuado(c, puntaje, afinidad, colaborativo);
-                })
-                .OrderByDescending(p => p.Puntaje)
-                .ThenBy(p => p.Municipio.Nombre)
-                .ToList();
+            var puntuados = Puntuar(candidatos, perfil, conocidos, idUsuario);
 
             // Primero lo nuevo para el usuario; lo que ya conoce solo completa si faltan opciones
             var nuevos = puntuados.Where(p => !conocidos.Contains(p.Municipio.IdMunicipio)).ToList();
@@ -544,6 +649,41 @@ namespace TurismoConecta.api.Services
                     var (razon, tipo) = Explicar(p, perfil, conocidos, esJoya: p == joya);
                     return CrearDto(p.Municipio, p.Puntaje, razon, tipo);
                 })
+                .ToList();
+        }
+
+        /// <summary>Puntaje de cada candidato (afinidad + calidad + ML.NET + novedad), del mejor al peor.</summary>
+        private List<Puntuado> Puntuar(
+            List<Candidato> candidatos, Dictionary<int, AporteEtiqueta> perfil, HashSet<int> conocidos, int? idUsuario)
+        {
+            var hayPerfil = perfil.Values.Any(a => a.Peso > 0);
+            var afinidades = CalcularAfinidades(candidatos, perfil);
+
+            return candidatos
+                .Select(c =>
+                {
+                    var afinidad = afinidades[c.IdMunicipio];
+                    var novedad = conocidos.Contains(c.IdMunicipio) ? 0 : 1;
+
+                    // Lo que ML.NET estima que le daría este usuario (1-5★), llevado a 0-1. null si no lo conoce
+                    var colaborativo = idUsuario is int id && _modelo.Predecir(id, c.IdMunicipio) is double estimada
+                        ? (estimada - 1) / 4
+                        : (double?)null;
+
+                    var puntaje = (hayPerfil, colaborativo) switch
+                    {
+                        (true, double colab) => PesoAfinidadConModelo * afinidad + PesoCalidadConModelo * Calidad(c)
+                                              + PesoColaborativo * colab + PesoNovedadConModelo * novedad,
+                        (true, null) => PesoAfinidad * afinidad + PesoCalidad * Calidad(c) + PesoNovedad * novedad,
+                        (false, double colab) => 0.5 * colab + 0.4 * Calidad(c) + 0.1 * novedad,
+                        // Sin gustos ni modelo: lo mejor calificado por los viajeros
+                        (false, null) => 0.85 * Calidad(c) + 0.15 * novedad
+                    };
+
+                    return new Puntuado(c, puntaje, afinidad, colaborativo);
+                })
+                .OrderByDescending(p => p.Puntaje)
+                .ThenBy(p => p.Municipio.Nombre)
                 .ToList();
         }
 
@@ -655,6 +795,14 @@ namespace TurismoConecta.api.Services
         {
             var union = a.Etiquetas.Keys.Union(b.Etiquetas.Keys).Count();
             return union == 0 ? 0 : (double)a.Etiquetas.Keys.Intersect(b.Etiquetas.Keys).Count() / union;
+        }
+
+        /// <summary>Estimación sin mapa: línea recta × factor de carretera, a velocidad de montaña (redondeado a 5 min).</summary>
+        private static (int Km, int Minutos) EstimarTramo(double kmLineaRecta)
+        {
+            var km = (int)Math.Round(kmLineaRecta * FactorCarretera);
+            var minutos = Math.Max(5, (int)Math.Round(km / VelocidadPromedioKmH * 60 / 5) * 5);
+            return (km, minutos);
         }
 
         private static string FormatoDuracion(int minutos) =>

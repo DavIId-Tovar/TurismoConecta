@@ -412,6 +412,150 @@
 /* ──────────────────────────────────────────
    BOTÓN AGREGAR MÁS MUNICIPIOS
    ────────────────────────────────────────── */
+/* ──────────────────────────────────────────
+   SORPRÉNDEME
+   ────────────────────────────────────────── */
+.sorpresa-barra {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(224, 169, 77, 0.16), rgba(33, 59, 49, 0.06));
+    border: 1px solid rgba(224, 169, 77, 0.35);
+}
+
+.sorpresa-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 999px;
+    background: var(--acento-bosque);
+    color: #fff;
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+    .sorpresa-btn:hover:not(:disabled) {
+        background: #2E5444;
+        transform: translateY(-1px);
+    }
+
+    .sorpresa-btn:disabled {
+        opacity: 0.65;
+        cursor: wait;
+    }
+
+    .sorpresa-btn i {
+        color: var(--acento-dorado);
+    }
+
+.sorpresa-btn-principal {
+    align-self: flex-start;
+}
+
+.sorpresa-btn-texto {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--acento-tierra);
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+    .sorpresa-btn-texto:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+.sorpresa-ayuda {
+    font-size: 0.8rem;
+    color: var(--texto-secundario);
+}
+
+.sorpresa-resumen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+}
+
+.sorpresa-titulo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--acento-bosque);
+}
+
+    .sorpresa-titulo i {
+        color: var(--acento-dorado);
+    }
+
+.sorpresa-datos {
+    flex: 1;
+    font-size: 0.82rem;
+    color: var(--texto-secundario);
+}
+
+.sorpresa-confirmar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.sorpresa-botones {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.sorpresa-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.78rem;
+    color: #9A6A10;
+}
+
+    .sorpresa-aviso.error {
+        color: #B4432D;
+    }
+
+/* Razón de la sorpresa en cada parada */
+.parada-razon {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #2E6B36;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+    .parada-razon i {
+        color: var(--acento-dorado);
+    }
+
 .btn-agregar-municipio {
     width: 100%;
     display: flex;
