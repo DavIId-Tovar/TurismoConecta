@@ -85,6 +85,12 @@ namespace TurismoConecta.web.Client.Models
         public int KmTotal { get; set; }
         public int MinutosTotal { get; set; }
         public List<string> SinUbicacion { get; set; } = new();
+
+        // true = carretera real (OpenRouteService); false = estimación en línea recta
+        public bool EsCarreteraReal { get; set; }
+
+        // Dibujo de la ruta por carretera como [lat, lng] (vacío si es estimación)
+        public List<double[]> Geometria { get; set; } = new();
     }
 
     public class TramoRutaDto

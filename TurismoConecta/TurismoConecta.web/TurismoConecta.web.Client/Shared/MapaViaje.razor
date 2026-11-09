@@ -4,6 +4,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject NegocioApiService NegocioService
+@inject RecomendacionApiService RecoService
 @inject ApiConfig Api
 
 <section class="mapa-viaje @(Compacto ? "compacto" : "")" aria-label="Mapa de la ruta">
@@ -21,6 +22,20 @@
     }
 
     <div id="@idMapa" class="mapa-viaje-lienzo"></div>
+
+    @if (ConUbicacion.Count > 1)
+    {
+        <p class="mapa-fuente">
+            @if (trazado?.EsCarreteraReal == true)
+            {
+                <i class="ph-fill ph-road-horizon" aria-hidden="true"></i> <span>Ruta por carretera real · OpenRouteService</span>
+            }
+            else
+            {
+                <i class="ph ph-ruler" aria-hidden="true"></i> <span>Ruta aproximada en línea recta · distancias estimadas</span>
+            }
+        </p>
+    }
 
     @if (!ConUbicacion.Any())
     {
@@ -102,10 +117,23 @@
     private bool ubicacionConError;
     private (double Lat, double Lng)? miUbicacion;
 
+    // Ruta por carretera (OpenRouteService) o estimación; la pide el propio mapa al cambiar las paradas
+    private RutaEstimadaDto? trazado;
+    private string? firmaTrazado;
+
     private List<ParadaMapa> ConUbicacion => Paradas.Where(p => p.TieneUbicacion).ToList();
     private List<ParadaMapa> SinUbicacion => Paradas.Where(p => !p.TieneUbicacion).ToList();
-    private int KmTotal => Paradas.Sum(p => p.KmDesdeAnterior ?? 0);
-    private int MinutosTotal => Paradas.Sum(p => p.MinutosDesdeAnterior ?? 0);
+
+    // Con carretera real se muestran sus km y minutos; si no, los que trae la página
+    private bool HayCarreteraReal => trazado?.EsCarreteraReal == true;
+    private int KmTotal => HayCarreteraReal ? trazado!.KmTotal : Paradas.Sum(p => p.KmDesdeAnterior ?? 0);
+    private int MinutosTotal => HayCarreteraReal ? trazado!.MinutosTotal : Paradas.Sum(p => p.MinutosDesdeAnterior ?? 0);
+
+    private (int? Km, int? Minutos) TramoDe(ParadaMapa p)
+    {
+        var real = HayCarreteraReal ? trazado!.Tramos.FirstOrDefault(t => t.IdMunicipio == p.IdMunicipio) : null;
+        return real is not null ? (real.KmDesdeAnterior, real.MinutosDesdeAnterior) : (p.KmDesdeAnterior, p.MinutosDesdeAnterior);
+    }
 
     // Waze solo acepta un destino: la parada más cercana si ya sabemos dónde está, si no la primera
     private ParadaMapa? SiguienteParada => miUbicacion is (double lat, double lng)
@@ -133,6 +161,17 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // El dibujo por carretera se pide solo si cambian las paradas o su orden (el API lo guarda en caché)
+        var firmaRuta = string.Join(",", ConUbicacion.Select(p => p.IdMunicipio));
+        if (firmaRuta != firmaTrazado)
+        {
+            firmaTrazado = firmaRuta;
+            trazado = ConUbicacion.Count > 1
+                ? await RecoService.EstimarRutaAsync(ConUbicacion.Select(p => p.IdMunicipio), optimizar: false)
+                : null;
+        }
+
+
         // La capa de negocios solo se vuelve a pedir si cambian los municipios de la ruta
         var firma = string.Join(",", Paradas.Select(p => p.IdMunicipio).Distinct().OrderBy(id => id));
         if (Compacto || firma == firmaNegocios) return;
@@ -153,7 +192,9 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Se redibuja solo si cambió algo de la ruta (orden, paradas o tramos)
-        var firma = string.Join("|", Paradas.Select(p => $"{p.IdMunicipio}:{p.Latitud}:{p.Longitud}:{p.KmDesdeAnterior}"));
+        var firma = string.Join("|", Paradas.Select(p => $"{p.IdMunicipio}:{p.Latitud}:{p.Longitud}:{p.KmDesdeAnterior}"))
+            + $"|real:{HayCarreteraReal}:{trazado?.KmTotal}";
+
         if (firma == firmaDibujada && !firstRender) return;
         firmaDibujada = firma;
 

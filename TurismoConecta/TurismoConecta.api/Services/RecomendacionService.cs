@@ -4,6 +4,7 @@ using TurismoConecta.api.DTOs.Recomendaciones;
 using TurismoConecta.api.Models;
 using TurismoConecta.api.Services.Interfaces;
 using TurismoConecta.api.Services.Recomendaciones;
+using TurismoConecta.api.Services.Rutas;
 
 namespace TurismoConecta.api.Services
 {
@@ -54,9 +55,12 @@ namespace TurismoConecta.api.Services
         private readonly ModeloColaborativo _modelo;
         private readonly double _radioCercaKm;
         private readonly ILogger<RecomendacionService> _logger;
+        private readonly RutaCarreteraService _carretera;
 
-        public RecomendacionService(AppDbContext context, ModeloColaborativo modelo, IConfiguration configuracion, ILogger<RecomendacionService> logger)
+        public RecomendacionService(AppDbContext context, ModeloColaborativo modelo, IConfiguration configuracion,
+            ILogger<RecomendacionService> logger, RutaCarreteraService carretera)
         {
+            _carretera = carretera;
             _context = context;
             _modelo = modelo;
             _logger = logger;
@@ -263,9 +267,41 @@ namespace TurismoConecta.api.Services
                 resultado.Tramos.Add(tramo);
             }
 
+            // Con clave de OpenRouteService: km, minutos y dibujo por la carretera real
+            await AplicarCarreteraRealAsync(resultado, porId, ct);
+
             resultado.KmTotal = resultado.Tramos.Sum(t => t.KmDesdeAnterior ?? 0);
             resultado.MinutosTotal = resultado.Tramos.Sum(t => t.MinutosDesdeAnterior ?? 0);
             return resultado;
+        }
+
+        /// <summary>
+        /// Reemplaza la estimación por la ruta real de OpenRouteService (solo las paradas con ubicación).
+        /// Si no hay clave o el servicio falla, la estimación se queda tal cual.
+        /// </summary>
+        private async Task AplicarCarreteraRealAsync(RutaEstimadaDto resultado, Dictionary<int, Candidato> porId, CancellationToken ct)
+        {
+            var enMapa = resultado.Tramos
+                .Where(t => porId.TryGetValue(t.IdMunicipio, out var m) && m.TieneUbicacion)
+                .ToList();
+
+            var puntos = enMapa
+                .Select(t => (Lat: porId[t.IdMunicipio].Latitud!.Value, Lng: porId[t.IdMunicipio].Longitud!.Value))
+                .ToList();
+
+            var trazado = await _carretera.CalcularAsync(puntos, ct);
+            if (trazado is null) return;
+
+            // El tramo i de OpenRouteService va de la parada i a la i+1
+            for (var i = 1; i < enMapa.Count; i++)
+            {
+                var (metros, segundos) = trazado.Tramos[i - 1];
+                enMapa[i].KmDesdeAnterior = (int)Math.Round(metros / 1000);
+                enMapa[i].MinutosDesdeAnterior = Math.Max(1, (int)Math.Round(segundos / 60));
+            }
+
+            resultado.EsCarreteraReal = true;
+            resultado.Geometria = trazado.Geometria;
         }
 
         /// <summary>
