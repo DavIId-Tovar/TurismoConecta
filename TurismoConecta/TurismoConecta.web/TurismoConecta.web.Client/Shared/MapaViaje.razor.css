@@ -51,6 +51,15 @@
         color: #B4432D;
     }
 
+.mapa-fuente {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: -4px 0 0;
+    font-size: 0.75rem;
+    color: #5A6961;
+}
+
 /* ---------- Salir a la carretera ---------- */
 .mapa-acciones {
     display: flex;

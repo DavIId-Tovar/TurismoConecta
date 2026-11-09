@@ -14,7 +14,8 @@ using TurismoConecta.api.Hubs;
 using TurismoConecta.api.Services;
 using TurismoConecta.api.Services.Etiquetas;
 using TurismoConecta.api.Services.Interfaces;
-using TurismoConecta.api.Services.Recomendaciones; 
+using TurismoConecta.api.Services.Recomendaciones;
+using TurismoConecta.api.Services.Rutas;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,6 +84,13 @@ builder.Services.AddScoped<IReseñaService, ReseñaService>();
 builder.Services.AddScoped<IRecomendacionService, RecomendacionService>();
 // Recomendaciones con ML.NET: el modelo vive en memoria (singleton) y se entrena en segundo plano.
 // con las interacciones de los usuarios (favoritos, reseñas, itinerarios) se va alimentando y mejorando.
+// Rutas reales por carretera (OpenRouteService). Sin clave, el motor usa la estimación en línea recta
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<RutaCarreteraService>(cliente =>
+{
+    cliente.BaseAddress = new Uri(builder.Configuration["OpenRouteService:BaseUrl"] ?? "https://api.openrouteservice.org/");
+    cliente.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("OpenRouteService:SegundosEspera", 10));
+});
 builder.Services.AddSingleton<ModeloColaborativo>();
 builder.Services.AddScoped<EntrenadorColaborativo>();
 builder.Services.AddHostedService<EntrenamientoRecomendacionesService>();

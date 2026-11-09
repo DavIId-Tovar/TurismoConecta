@@ -30,6 +30,13 @@ namespace TurismoConecta.api.DTOs.Recomendaciones
 
         // Paradas sin coordenadas: no suman km y se avisa en pantalla
         public List<string> SinUbicacion { get; set; } = new();
+
+        // true = km, minutos y dibujo salen de OpenRouteService (carretera real);
+        // false = estimación en línea recta (sin clave o si el servicio falló) salen los puntos de la ruta pero no se dibuja la carretera real; 
+        public bool EsCarreteraReal { get; set; }
+
+        // Dibujo de la ruta por carretera como [lat, lng] (vacío si es estimación)
+        public List<double[]> Geometria { get; set; } = new();
     }
 
     public class TramoRutaDto

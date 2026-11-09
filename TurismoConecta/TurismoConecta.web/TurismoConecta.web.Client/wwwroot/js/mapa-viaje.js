@@ -126,7 +126,8 @@ window.mapaViaje = (function () {
 
     // paradas: [{ numero, dia, idMunicipio, nombre, lat, lng, imagenUrl, kmDesdeAnterior, duracion, desdeNombre }]
     // Solo llegan las que tienen ubicación, ya en orden de la ruta.
-    function dibujar(idElemento, paradas) {
+    // geometria: [[lat, lng], …] de la carretera real (OpenRouteService) o null → línea recta punteada
+    function dibujar(idElemento, paradas, geometria) {
         const estado = obtenerOCrear(idElemento);
         if (!estado) return;
 
@@ -138,8 +139,12 @@ window.mapaViaje = (function () {
 
         const puntos = paradas.map(p => [p.lat, p.lng]);
 
-        if (puntos.length > 1) {
-            // Borde claro debajo + línea punteada encima: se lee sobre cualquier fondo
+        if (geometria && geometria.length > 1) {
+            // Carretera real: línea continua que sigue la vía, con borde claro para leerse sobre el mapa
+            L.polyline(geometria, { color: '#FFFDF8', weight: 8, opacity: 0.9 }).addTo(estado.capaRuta);
+            L.polyline(geometria, { color: COLOR_RUTA, weight: 5 }).addTo(estado.capaRuta);
+        } else if (puntos.length > 1) {
+            // Estimación: borde claro debajo + línea recta punteada encima
             L.polyline(puntos, { color: '#FFFDF8', weight: 7, opacity: 0.9 }).addTo(estado.capaRuta);
             L.polyline(puntos, { color: COLOR_RUTA, weight: 4, dashArray: '8 8' }).addTo(estado.capaRuta);
         }
