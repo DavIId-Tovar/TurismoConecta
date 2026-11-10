@@ -45,12 +45,16 @@ namespace TurismoConecta.web.Client.Services
         }
 
         // Km y tiempo de la ruta. optimizar = la devuelve ordenada por cercanía (la 1.ª parada no se mueve). null = falló
-        public async Task<RutaEstimadaDto?> EstimarRutaAsync(IEnumerable<int> idsEnOrden, bool optimizar, CancellationToken ct = default)
+        // desde: ubicación del usuario ("Estoy aquí"); con optimizar, la ruta empieza por la parada más cercana a ella
+        public async Task<RutaEstimadaDto?> EstimarRutaAsync(IEnumerable<int> idsEnOrden, bool optimizar, CancellationToken ct = default, (double Lat, double Lng)? desde = null)
         {
             try
             {
-                return await _http.GetFromJsonAsync<RutaEstimadaDto>(
-                    $"api/recomendaciones/ruta?ids={string.Join(",", idsEnOrden)}&optimizar={(optimizar ? "true" : "false")}", ct);
+                var url = $"api/recomendaciones/ruta?ids={string.Join(",", idsEnOrden)}&optimizar={(optimizar ? "true" : "false")}";
+                if (optimizar && desde is (double lat, double lng))
+                    url += string.Create(System.Globalization.CultureInfo.InvariantCulture, $"&desdeLat={lat:0.######}&desdeLng={lng:0.######}");
+
+                return await _http.GetFromJsonAsync<RutaEstimadaDto>(url, ct);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
         }

@@ -103,6 +103,12 @@
     /// <summary>Vista previa (Crear itinerario): mapa más bajo, sin resumen ni capa de negocios.</summary>
     [Parameter] public bool Compacto { get; set; }
 
+    /// <summary>
+    /// "Estoy aquí" encontró la ubicación. Crear itinerario lo usa para reordenar la ruta desde ahí;
+    /// en un itinerario ya guardado no se pasa y el botón solo marca dónde estás.
+    /// </summary>
+    [Parameter] public EventCallback<(double Lat, double Lng)> AlUbicarme { get; set; }
+
     /// <summary>Alertas municipales: IdMunicipio → título del aviso (lo llena AvisosRuta). El pin lleva un "!".</summary>
     [Parameter] public IReadOnlyDictionary<int, string>? Avisos { get; set; }
 
@@ -289,6 +295,12 @@
             mensajeUbicacion = km < 2
                 ? $"¡Estás en {cercana.Nombre}!"
                 : $"Estás a ~{Math.Round(km)} km en línea recta de {cercana.Nombre}, la parada más cercana.";
+
+            if (AlUbicarme.HasDelegate)
+            {
+                mensajeUbicacion += " Reordenamos la ruta para empezar desde donde estás.";
+                await AlUbicarme.InvokeAsync((lat, lng));
+            }
         }
         catch (JSException)
         {

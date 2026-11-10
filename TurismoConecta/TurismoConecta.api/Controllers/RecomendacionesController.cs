@@ -66,13 +66,27 @@ namespace TurismoConecta.api.Controllers
 
         /// <summary>
         /// Km y tiempo estimados de una ruta ("4,1,2"): resumen de Crear itinerario.
-        /// optimizar=true la devuelve ordenada por cercanía (la primera parada se queda como punto de partida).
+        /// optimizar=true la devuelve ordenada por cercanía: desde la ubicación del usuario si viene
+        /// desdeLat/desdeLng ("Estoy aquí"); si no, la primera parada se queda como punto de partida.
         /// </summary>
         [HttpGet("ruta")]
         [AllowAnonymous]
         [ProducesResponseType(typeof(RutaEstimadaDto), StatusCodes.Status200OK)]
-        public async Task<IActionResult> EstimarRuta([FromQuery] string? ids, [FromQuery] bool optimizar = false, CancellationToken ct = default) =>
-            Ok(await _recomendacionService.EstimarRutaAsync(LeerIds(ids).Take(30).ToList(), optimizar, ct));
+        public async Task<IActionResult> EstimarRuta(
+            [FromQuery] string? ids,
+            [FromQuery] bool optimizar = false,
+            [FromQuery] double? desdeLat = null,
+            [FromQuery] double? desdeLng = null,
+            CancellationToken ct = default)
+        {
+            // desdeLat/desdeLng: ubicación del usuario ("Estoy aquí"); se ignora si no es una coordenada válida
+            (double Lat, double Lng)? desde =
+                desdeLat is double lat and >= -90 and <= 90 && desdeLng is double lng and >= -180 and <= 180
+                    ? (lat, lng)
+                    : null;
+
+            return Ok(await _recomendacionService.EstimarRutaAsync(LeerIds(ids).Take(30).ToList(), optimizar, ct, desde));
+        }
 
         /// <summary>Los gustos guardados del usuario en sesión.</summary>
         [HttpGet("preferencias")]

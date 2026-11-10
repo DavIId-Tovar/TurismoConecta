@@ -222,7 +222,7 @@ namespace TurismoConecta.api.Services
         /// Km y tiempo estimados de una ruta en el orden dado (para el resumen de Crear itinerario).
         /// Los municipios sin coordenadas se saltan: el tramo se mide desde la última parada con ubicación.
         /// </summary>
-        public async Task<RutaEstimadaDto> EstimarRutaAsync(List<int> idsEnOrden, bool optimizar, CancellationToken ct = default)
+        public async Task<RutaEstimadaDto> EstimarRutaAsync(List<int> idsEnOrden, bool optimizar, CancellationToken ct = default, (double Lat, double Lng)? desde = null)
         {
             var resultado = new RutaEstimadaDto();
             if (idsEnOrden.Count == 0) return resultado;
@@ -231,14 +231,14 @@ namespace TurismoConecta.api.Services
                 .Where(c => idsEnOrden.Contains(c.IdMunicipio))
                 .ToDictionary(c => c.IdMunicipio);
 
-            // Orden por cercanía: la primera parada con ubicación es el punto de partida;
-            // las que no tienen coordenadas van al final, en el orden en que estaban
+            // Orden por cercanía: el punto de partida es la ubicación del usuario (si la dio)
+            // o, si no, la primera parada con ubicación. Las que no tienen coordenadas van al final.
             if (optimizar)
             {
                 var conUbicacion = idsEnOrden.Where(id => porId.TryGetValue(id, out var m) && m.TieneUbicacion).Select(id => porId[id]).ToList();
                 var sinUbicacion = idsEnOrden.Where(id => porId.TryGetValue(id, out var m) && !m.TieneUbicacion);
 
-                idsEnOrden = OrdenarPorCercania(conUbicacion).Select(c => c.IdMunicipio).Concat(sinUbicacion).ToList();
+                idsEnOrden = OrdenarPorCercania(conUbicacion, desde).Select(c => c.IdMunicipio).Concat(sinUbicacion).ToList();
             }
 
             Candidato? anterior = null;
@@ -309,9 +309,17 @@ namespace TurismoConecta.api.Services
         /// 1) Vecino más cercano: desde cada parada se va a la más cercana que falte.
         /// 2) Mejora 2-opt: invierte tramos mientras eso acorte el total (quita los cruces de la ruta).
         /// Con las pocas paradas de un viaje (máx. 30) es instantáneo.
+        /// Con "desde" (ubicación del usuario) se agrega un punto de partida virtual: ninguna parada
+        /// queda fija y la ruta arranca por la que deja el recorrido total más corto desde ahí.
         /// </summary>
-        private static List<Candidato> OrdenarPorCercania(List<Candidato> paradas)
+        private static List<Candidato> OrdenarPorCercania(List<Candidato> paradas, (double Lat, double Lng)? desde = null)
         {
+            if (desde is (double lat, double lng) && paradas.Count > 1)
+            {
+                var origen = new Candidato(0, "Tu ubicación", null, null, new Dictionary<int, string>(), null, 0, lat, lng);
+                return OrdenarPorCercania(paradas.Prepend(origen).ToList()).Skip(1).ToList();
+            }
+
             if (paradas.Count <= 2) return paradas;
 
             var ruta = new List<Candidato> { paradas[0] };
