@@ -1,0 +1,406 @@
+@inject AlertaApiService AlertaService
+
+@*
+    Gestión de alertas municipales. El mismo componente sirve a los tres paneles:
+    el API decide qué puede ver y elegir cada rol (api/alertas/opciones y /gestion).
+      General   → elige cualquier municipio.
+      Municipio → su municipio fijo; puede nombrar un negocio del municipio.
+      Comercio  → solo sus negocios, y solo cierres o cambios de horario.
+*@
+<div class="panel-alertas">
+    @if (cargando)
+    {
+        <p class="pa-nota"><span class="pa-spinner"></span> Cargando alertas...</p>
+    }
+    else if (opciones is null)
+    {
+        <p class="pa-error">No se pudieron cargar las alertas. Intenta de nuevo más tarde.</p>
+    }
+    else
+    {
+        <div class="pa-cabecera">
+            <p class="pa-nota">
+                @if (Vigentes.Count == 0)
+                {
+                    <span>No hay alertas vigentes.</span>
+                }
+                else
+                {
+                    <strong>@Vigentes.Count vigente@(Vigentes.Count != 1 ? "s" : "")</strong>
+                    <span>· los turistas afectados reciben el aviso al publicarla.</span>
+                }
+            </p>
+            @if (!formularioAbierto && PuedePublicar)
+            {
+                <button type="button" class="pa-btn-primario" @onclick="AbrirNueva">
+                    <i class="ph ph-plus" aria-hidden="true"></i> Nueva alerta
+                </button>
+            }
+        </div>
+
+        @if (!PuedePublicar && !formularioAbierto)
+        {
+            <p class="pa-nota pa-nota-suave">
+                @(opciones.Alcance == "Comercio"
+                    ? "Necesitas al menos un establecimiento aprobado para publicar avisos."
+                    : "Tu cuenta no tiene un municipio asignado.")
+            </p>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeOk))
+        {
+            <p class="pa-ok"><i class="ph-fill ph-check-circle" aria-hidden="true"></i> @mensajeOk</p>
+        }
+
+        @if (!formularioAbierto && !string.IsNullOrEmpty(error))
+        {
+            <p class="pa-error">@error</p>
+        }
+
+        @if (formularioAbierto)
+        {
+            <form class="pa-form" @onsubmit="Guardar" @onsubmit:preventDefault>
+                <h3 class="pa-form-titulo">@(editando is null ? "Nueva alerta" : "Editar alerta")</h3>
+
+                <div class="pa-grid">
+                    @if (opciones.Alcance == "General")
+                    {
+                        <label class="pa-campo">
+                            <span>Municipio</span>
+                            <select value="@(form.IdMunicipio?.ToString() ?? "")" @onchange="CambiarMunicipio" disabled="@(editando is not null)">
+                                <option value="">Elige un municipio…</option>
+                                @foreach (var m in opciones.Municipios)
+                                {
+                                    <option value="@m.Id">@m.Nombre</option>
+                                }
+                            </select>
+                        </label>
+                    }
+                    else if (opciones.Alcance == "Municipio")
+                    {
+                        <div class="pa-campo">
+                            <span>Municipio</span>
+                            <strong class="pa-fijo">@(opciones.Municipios.FirstOrDefault()?.Nombre ?? "—")</strong>
+                        </div>
+                    }
+
+                    @if (opciones.Alcance == "Comercio" || NegociosDelMunicipio.Any())
+                    {
+                        <label class="pa-campo">
+                            <span>Establecimiento @(opciones.Alcance == "Comercio" ? "" : "(opcional)")</span>
+                            <select value="@(form.IdNegocio?.ToString() ?? "")" @onchange="CambiarNegocio">
+                                <option value="">@(opciones.Alcance == "Comercio" ? "Elige tu establecimiento…" : "Todo el municipio")</option>
+                                @foreach (var n in NegociosDelMunicipio)
+                                {
+                                    <option value="@n.Id">@n.Nombre</option>
+                                }
+                            </select>
+                        </label>
+                    }
+
+                    <label class="pa-campo">
+                        <span>Tipo</span>
+                        <select @bind="form.Tipo">
+                            <option value="">Elige el tipo…</option>
+                            @foreach (var t in opciones.Tipos)
+                            {
+                                <option value="@t">@TiposAlerta.Nombre(t)</option>
+                            }
+                        </select>
+                    </label>
+
+                    <div class="pa-campo">
+                        <span>Severidad</span>
+                        <div class="pa-severidades" role="radiogroup">
+                            @foreach (var s in opciones.Severidades)
+                            {
+                                var sev = s;
+                                <button type="button"
+                                        role="radio"
+                                        aria-checked="@(form.Severidad == sev ? "true" : "false")"
+                                        class="pa-sev @SeveridadesAlerta.Clase(sev) @(form.Severidad == sev ? "activa" : "")"
+                                        @onclick="() => form.Severidad = sev">
+                                    @SeveridadesAlerta.Nombre(sev)
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <label class="pa-campo pa-ancho">
+                        <span>Título</span>
+                        <input type="text" maxlength="120" @bind="form.Titulo" @bind:event="oninput"
+                               placeholder="Ej.: Vía Sogamoso–Monguí cerrada por derrumbe" />
+                        <small>@form.Titulo.Length / 120</small>
+                    </label>
+
+                    <label class="pa-campo pa-ancho">
+                        <span>Descripción</span>
+                        <textarea rows="3" maxlength="1000" @bind="form.Descripcion" @bind:event="oninput"
+                                  placeholder="Qué pasa, a quién afecta y qué alternativa tiene el turista."></textarea>
+                        <small>@form.Descripcion.Length / 1000</small>
+                    </label>
+
+                    <label class="pa-campo">
+                        <span>Empieza</span>
+                        <input type="datetime-local" @bind="form.FechaInicio" @bind:format="yyyy-MM-ddTHH:mm" />
+                    </label>
+
+                    <label class="pa-campo">
+                        <span>Termina</span>
+                        <input type="datetime-local" @bind="form.FechaFin" @bind:format="yyyy-MM-ddTHH:mm" />
+                    </label>
+                </div>
+
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <p class="pa-error">@error</p>
+                }
+
+                <div class="pa-acciones">
+                    <button type="button" class="pa-btn-secundario" @onclick="CerrarFormulario" disabled="@guardando">Cancelar</button>
+                    <button type="submit" class="pa-btn-primario" disabled="@guardando">
+                        @if (guardando)
+                        {
+                            <span class="pa-spinner claro"></span>
+                        }
+                        @(editando is null ? "Publicar alerta" : "Guardar cambios")
+                    </button>
+                </div>
+            </form>
+        }
+
+        @if (Vigentes.Count > 0)
+        {
+            <ul class="pa-lista">
+                @foreach (var alerta in Vigentes)
+                {
+                    var a = alerta;
+                    <li class="pa-item @SeveridadesAlerta.Clase(a.Severidad)" @key="a.IdAlerta">
+                        <div class="pa-item-icono" aria-hidden="true"><i class="@TiposAlerta.Icono(a.Tipo)"></i></div>
+                        <div class="pa-item-cuerpo">
+                            <div class="pa-item-chips">
+                                <span class="pa-chip @(a.Estado == "EnCurso" ? "en-curso" : "proxima")">@(a.Estado == "EnCurso" ? "En curso" : "Próxima")</span>
+                                <span class="pa-chip">@TiposAlerta.Nombre(a.Tipo)</span>
+                                <span class="pa-chip @SeveridadesAlerta.Clase(a.Severidad)">@SeveridadesAlerta.Nombre(a.Severidad)</span>
+                            </div>
+                            <strong class="pa-item-titulo">@a.Titulo</strong>
+                            <p class="pa-item-desc">@a.Descripcion</p>
+                            <span class="pa-item-meta">
+                                @a.Rango
+                                · @(a.NombreNegocio is null ? a.NombreMunicipio : $"{a.NombreNegocio} ({a.NombreMunicipio})")
+                                @if (!string.IsNullOrWhiteSpace(a.NombreCreador))
+                                {
+                                    <span> · por @a.NombreCreador</span>
+                                }
+                            </span>
+
+                            @if (a.PuedeGestionar)
+                            {
+                                <div class="pa-item-acciones">
+                                    @if (confirmandoFinalizar == a.IdAlerta)
+                                    {
+                                        <span class="pa-pregunta">¿Quitar el aviso ahora?</span>
+                                        <button type="button" class="pa-btn-secundario" @onclick="() => confirmandoFinalizar = null" disabled="@guardando">No</button>
+                                        <button type="button" class="pa-btn-peligro" @onclick="() => Finalizar(a)" disabled="@guardando">Sí, finalizar</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="pa-btn-enlace" @onclick="() => AbrirEdicion(a)" disabled="@guardando">
+                                            <i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar
+                                        </button>
+                                        <button type="button" class="pa-btn-enlace peligro" @onclick="() => confirmandoFinalizar = a.IdAlerta" disabled="@guardando">
+                                            <i class="ph ph-stop-circle" aria-hidden="true"></i> Finalizar
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Historial.Count > 0)
+        {
+            <button type="button" class="pa-btn-enlace pa-historial-toggle" @onclick="() => verHistorial = !verHistorial">
+                <i class="ph @(verHistorial ? "ph-caret-up" : "ph-caret-down")" aria-hidden="true"></i>
+                Historial (@Historial.Count)
+            </button>
+
+            @if (verHistorial)
+            {
+                <ul class="pa-lista pa-lista-historial">
+                    @foreach (var a in Historial)
+                    {
+                        <li class="pa-item pasada" @key="a.IdAlerta">
+                            <div class="pa-item-icono" aria-hidden="true"><i class="@TiposAlerta.Icono(a.Tipo)"></i></div>
+                            <div class="pa-item-cuerpo">
+                                <div class="pa-item-chips">
+                                    <span class="pa-chip">@(a.Estado == "Finalizada" ? "Finalizada" : "Vencida")</span>
+                                    <span class="pa-chip">@TiposAlerta.Nombre(a.Tipo)</span>
+                                </div>
+                                <strong class="pa-item-titulo">@a.Titulo</strong>
+                                <span class="pa-item-meta">@a.Rango · @(a.NombreNegocio ?? a.NombreMunicipio)</span>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    }
+</div>
+
+@code {
+    private List<AlertaDto> alertas = new();
+    private OpcionesAlertaDto? opciones;
+    private bool cargando = true;
+    private bool guardando;
+    private bool formularioAbierto;
+    private bool verHistorial;
+    private AlertaDto? editando;
+    private int? confirmandoFinalizar;
+    private string? error;
+    private string? mensajeOk;
+    private GuardarAlertaRequest form = new();
+
+    private List<AlertaDto> Vigentes => alertas.Where(a => a.Vigente).ToList();
+    private List<AlertaDto> Historial => alertas.Where(a => !a.Vigente).ToList();
+
+    private bool PuedePublicar => opciones is not null && (opciones.Alcance switch
+    {
+        "General" => opciones.Municipios.Count > 0,
+        "Municipio" => opciones.Municipios.Count > 0,
+        "Comercio" => opciones.Negocios.Count > 0,
+        _ => false
+    });
+
+    /// <summary>Negocios elegibles: los del municipio elegido (o todos los del comercio).</summary>
+    private IEnumerable<OpcionNegocioDto> NegociosDelMunicipio =>
+        opciones is null ? Enumerable.Empty<OpcionNegocioDto>()
+        : opciones.Alcance == "Comercio" ? opciones.Negocios
+        : opciones.Negocios.Where(n => n.IdMunicipio == (form.IdMunicipio ?? opciones.Municipios.FirstOrDefault()?.Id));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var tareaOpciones = AlertaService.ObtenerOpcionesAsync();
+        var tareaAlertas = AlertaService.ListarGestionAsync();
+        await Task.WhenAll(tareaOpciones, tareaAlertas);
+
+        opciones = tareaOpciones.Result;
+        alertas = tareaAlertas.Result;
+        cargando = false;
+    }
+
+    private void AbrirNueva()
+    {
+        var ahora = DateTime.Now;
+        // Por defecto: empieza en la próxima hora en punto y dura un día
+        var inicio = new DateTime(ahora.Year, ahora.Month, ahora.Day, ahora.Hour, 0, 0).AddHours(1);
+
+        form = new GuardarAlertaRequest
+        {
+            IdMunicipio = opciones?.Alcance == "Municipio" ? opciones.Municipios.FirstOrDefault()?.Id : null,
+            IdNegocio = opciones?.Alcance == "Comercio" && opciones.Negocios.Count == 1 ? opciones.Negocios[0].Id : null,
+            Tipo = opciones?.Tipos.Count == 1 ? opciones.Tipos[0] : "",
+            Severidad = SeveridadesAlerta.Informativa,
+            FechaInicio = inicio,
+            FechaFin = inicio.AddDays(1)
+        };
+        editando = null;
+        error = null;
+        mensajeOk = null;
+        formularioAbierto = true;
+    }
+
+    private void AbrirEdicion(AlertaDto alerta)
+    {
+        form = new GuardarAlertaRequest
+        {
+            IdMunicipio = alerta.IdMunicipio,
+            IdNegocio = alerta.IdNegocio,
+            Tipo = alerta.Tipo,
+            Severidad = alerta.Severidad,
+            Titulo = alerta.Titulo,
+            Descripcion = alerta.Descripcion,
+            FechaInicio = alerta.FechaInicio,
+            FechaFin = alerta.FechaFin
+        };
+        editando = alerta;
+        error = null;
+        mensajeOk = null;
+        formularioAbierto = true;
+    }
+
+    private void CerrarFormulario()
+    {
+        formularioAbierto = false;
+        editando = null;
+        error = null;
+    }
+
+    private void CambiarMunicipio(ChangeEventArgs e)
+    {
+        form.IdMunicipio = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        // El negocio elegido podría ser de otro municipio
+        if (form.IdNegocio.HasValue && !NegociosDelMunicipio.Any(n => n.Id == form.IdNegocio)) form.IdNegocio = null;
+    }
+
+    private void CambiarNegocio(ChangeEventArgs e) =>
+        form.IdNegocio = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+
+    private async Task Guardar()
+    {
+        error = ValidarEnCliente();
+        if (error is not null) return;
+
+        guardando = true;
+        var (exito, alerta, mensaje) = editando is null
+            ? await AlertaService.CrearAsync(form)
+            : await AlertaService.EditarAsync(editando.IdAlerta, form);
+        guardando = false;
+
+        if (!exito || alerta is null)
+        {
+            error = mensaje ?? "No se pudo guardar la alerta.";
+            return;
+        }
+
+        alertas.RemoveAll(a => a.IdAlerta == alerta.IdAlerta);
+        alertas.Insert(0, alerta);
+        mensajeOk = editando is null ? "Alerta publicada. Los turistas afectados ya recibieron el aviso." : "Cambios guardados.";
+        CerrarFormulario();
+    }
+
+    private string? ValidarEnCliente()
+    {
+        if (opciones?.Alcance == "General" && form.IdMunicipio is null) return "Elige el municipio.";
+        if (opciones?.Alcance == "Comercio" && form.IdNegocio is null) return "Elige el establecimiento.";
+        if (string.IsNullOrEmpty(form.Tipo)) return "Elige el tipo de alerta.";
+        if (form.Titulo.Trim().Length < 5) return "El título debe tener al menos 5 caracteres.";
+        if (form.Descripcion.Trim().Length < 10) return "La descripción debe tener al menos 10 caracteres.";
+        if (form.FechaFin <= form.FechaInicio) return "La fecha de fin debe ser posterior a la de inicio.";
+        if (form.FechaFin <= DateTime.Now) return "La alerta terminaría en el pasado: revisa la fecha de fin.";
+        return null;
+    }
+
+    private async Task Finalizar(AlertaDto alerta)
+    {
+        error = null;
+        mensajeOk = null;
+        guardando = true;
+        var (exito, mensaje) = await AlertaService.FinalizarAsync(alerta.IdAlerta);
+        guardando = false;
+        confirmandoFinalizar = null;
+
+        if (!exito)
+        {
+            error = mensaje;
+            return;
+        }
+
+        // Pasa al historial con el estado nuevo
+        alerta.Activa = false;
+        alerta.Estado = "Finalizada";
+        mensajeOk = "Alerta finalizada: ya no se muestra a los turistas.";
+    }
+}

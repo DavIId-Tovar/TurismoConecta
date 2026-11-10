@@ -1,0 +1,97 @@
+/* "Avisos en tu ruta" (ItinerarioDetalle, ItinerarioCompartido, CrearItinerario) */
+
+.avisos-ruta {
+    margin: 0 0 1.5rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid #EFD9A6;
+    border-radius: 14px;
+    background: #FFFBF1;
+}
+
+.ar-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.75rem;
+}
+
+.ar-cabecera > i { font-size: 1.4rem; color: #C9A227; }
+.ar-cabecera strong { display: block; font-size: 0.95rem; color: #1f1409; }
+.ar-cabecera span { font-size: 0.78rem; color: #7a5f0e; }
+
+.ar-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.ar-item {
+    border: 1px solid #EAE6DF;
+    border-left: 4px solid #3E6E95;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.ar-item.sev-precaucion { border-left-color: #C9A227; }
+.ar-item.sev-importante { border-left-color: #A33A2B; }
+
+.ar-fila {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.6rem 0.8rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
+}
+
+.ar-icono {
+    flex: 0 0 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #E6EEF5;
+    color: #2c5576;
+}
+
+.sev-precaucion .ar-icono { background: #FBF1D6; color: #7a5f0e; }
+.sev-importante .ar-icono { background: #F6E1DC; color: #A33A2B; }
+
+.ar-texto { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.ar-lugar { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #9E5B3D; }
+.ar-titulo { font-size: 0.88rem; font-weight: 600; color: #1f1409; overflow-wrap: anywhere; }
+
+.ar-sev {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #2c5576;
+}
+
+.sev-precaucion .ar-sev { color: #7a5f0e; }
+.sev-importante .ar-sev { color: #A33A2B; }
+
+.ar-detalle { padding: 0 0.9rem 0.75rem 3.3rem; }
+
+.ar-detalle p {
+    margin: 0 0 4px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #2d2a26;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.ar-detalle small { font-size: 0.72rem; color: #6b6257; }
+
+@media (max-width: 560px) {
+    .ar-detalle { padding-left: 0.9rem; }
+    .ar-sev { display: none; }
+}

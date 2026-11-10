@@ -780,3 +780,19 @@
     background: #1EBE5D;
 }
 
+
+/* Parada con alerta municipal vigente (AvisosRuta) */
+.badge-aviso-parada {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #F6E1DC;
+    color: #A33A2B;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}

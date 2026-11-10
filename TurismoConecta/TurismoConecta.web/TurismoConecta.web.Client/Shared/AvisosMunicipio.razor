@@ -1,0 +1,89 @@
+@inject AlertaApiService AlertaService
+
+@*
+    Franja de avisos vigentes de un municipio (ficha) o de un negocio (modal del negocio).
+    Si no hay avisos no pinta nada.
+*@
+@if (avisos.Count > 0)
+{
+    <section class="avisos @(Compacta ? "compacta" : "")" aria-label="Avisos vigentes">
+        @if (!Compacta)
+        {
+            <header class="avisos-cabecera">
+                <i class="ph-fill ph-warning" aria-hidden="true"></i>
+                <strong>Avisos para tu visita</strong>
+                <span>@avisos.Count vigente@(avisos.Count != 1 ? "s" : "")</span>
+            </header>
+        }
+
+        <ul class="avisos-lista">
+            @foreach (var aviso in avisos)
+            {
+                var a = aviso;
+                var abierto = abiertos.Contains(a.IdAlerta);
+                <li class="aviso @SeveridadesAlerta.Clase(a.Severidad)" @key="a.IdAlerta">
+                    <button type="button" class="aviso-fila" aria-expanded="@(abierto ? "true" : "false")"
+                            @onclick="() => Alternar(a.IdAlerta)">
+                        <span class="aviso-icono" aria-hidden="true"><i class="@TiposAlerta.Icono(a.Tipo)"></i></span>
+                        <span class="aviso-texto">
+                            <span class="aviso-titulo">@a.Titulo</span>
+                            <span class="aviso-meta">
+                                @TiposAlerta.Nombre(a.Tipo)
+                                @if (a.NombreNegocio is not null && IdNegocio is null)
+                                {
+                                    <span> · @a.NombreNegocio</span>
+                                }
+                                · @(a.Estado == "Proxima" ? "Desde el " : "Hasta el ")@(a.Estado == "Proxima" ? a.FechaInicio.ToString("d MMM, HH:mm", Es) : a.FechaFin.ToString("d MMM, HH:mm", Es))
+                            </span>
+                        </span>
+                        <i class="ph @(abierto ? "ph-caret-up" : "ph-caret-down") aviso-caret" aria-hidden="true"></i>
+                    </button>
+
+                    @if (abierto)
+                    {
+                        <div class="aviso-detalle">
+                            <p>@a.Descripcion</p>
+                            <small>@a.Rango · @SeveridadesAlerta.Nombre(a.Severidad)</small>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public int IdMunicipio { get; set; }
+
+    /// <summary>Si viene, solo se muestran los avisos de ese establecimiento.</summary>
+    [Parameter] public int? IdNegocio { get; set; }
+
+    /// <summary>Sin cabecera (para el modal del negocio).</summary>
+    [Parameter] public bool Compacta { get; set; }
+
+    private static readonly System.Globalization.CultureInfo Es = new("es-CO");
+
+    private List<AlertaDto> avisos = new();
+    private readonly HashSet<int> abiertos = new();
+    private (int, int?) cargado;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Solo vuelve a pedir si cambió el lugar
+        if (cargado == (IdMunicipio, IdNegocio)) return;
+        cargado = (IdMunicipio, IdNegocio);
+
+        var lista = await AlertaService.ListarDeMunicipioAsync(IdMunicipio);
+        avisos = IdNegocio.HasValue ? lista.Where(a => a.IdNegocio == IdNegocio).ToList() : lista;
+
+        // Los importantes en curso se muestran abiertos
+        abiertos.Clear();
+        foreach (var a in avisos.Where(a => a.Severidad == SeveridadesAlerta.Importante && a.Estado == "EnCurso"))
+            abiertos.Add(a.IdAlerta);
+    }
+
+    private void Alternar(int idAlerta)
+    {
+        if (!abiertos.Remove(idAlerta)) abiertos.Add(idAlerta);
+    }
+}

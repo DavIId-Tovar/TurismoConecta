@@ -10,6 +10,7 @@ window.mapaViaje = (function () {
     const ATRIBUCION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
     const COLOR_RUTA = '#213B31';
     const COLOR_DORADO = '#E0A94D';
+    const COLOR_AVISO = '#A33A2B';   // parada con alerta municipal vigente
 
     const mapas = new Map();   // idElemento → { mapa, capaRuta, capaNegocios, pinYo }
 
@@ -23,18 +24,26 @@ window.mapaViaje = (function () {
         return typeof icono === 'string' && icono.trim().toLowerCase().startsWith('ph');
     }
 
-    function iconoParada(numero) {
+    // conAviso: la parada tiene una alerta municipal vigente → borde rojo y un "!" en la esquina
+    function iconoParada(numero, conAviso) {
+        const borde = conAviso ? COLOR_AVISO : COLOR_DORADO;
+        const insignia = conAviso
+            ? '<span style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;' +
+              'background:' + COLOR_AVISO + ';border:2px solid #FFFDF8;color:#fff;font:800 11px Montserrat,sans-serif;' +
+              'display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.35);">!</span>'
+            : '';
         return L.divIcon({
             className: '',
             iconSize: [36, 36],
             iconAnchor: [18, 36],
             popupAnchor: [0, -34],
             html:
+                '<div style="position:relative;width:36px;height:36px;">' +
                 '<div style="width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);' +
-                'background:' + COLOR_RUTA + ';border:3px solid ' + COLOR_DORADO + ';box-shadow:0 6px 14px rgba(0,0,0,.35);' +
+                'background:' + COLOR_RUTA + ';border:3px solid ' + borde + ';box-shadow:0 6px 14px rgba(0,0,0,.35);' +
                 'display:grid;place-items:center;">' +
                 '<span style="transform:rotate(45deg);color:#F7F1E3;font:700 14px Montserrat,sans-serif;">' + numero + '</span>' +
-                '</div>'
+                '</div>' + insignia + '</div>'
         });
     }
 
@@ -117,6 +126,10 @@ window.mapaViaje = (function () {
         return '<div style="min-width:180px;font-family:Montserrat,sans-serif;">' + foto +
             '<div style="font-size:11px;font-weight:700;color:#9E5B3D;text-transform:uppercase;letter-spacing:.5px;">Día ' + p.dia + ' · Parada ' + p.numero + '</div>' +
             '<div style="font-size:15px;font-weight:700;color:#1E2B25;">' + escaparHtml(p.nombre) + '</div>' + tramo +
+            (p.aviso
+                ? '<div style="margin-top:6px;padding:4px 8px;border-radius:6px;background:#F6E1DC;color:' + COLOR_AVISO +
+                  ';font-size:12px;font-weight:600;">&#9888; ' + escaparHtml(p.aviso) + '</div>'
+                : '') +
             '<div style="display:flex;gap:10px;margin-top:8px;font-size:12px;font-weight:700;">' +
             '<a href="/municipios/' + p.idMunicipio + '" target="_blank" rel="noopener">Ver guía</a>' +
             '<a href="' + waze + '" target="_blank" rel="noopener">Waze</a>' +
@@ -150,7 +163,7 @@ window.mapaViaje = (function () {
         }
 
         paradas.forEach(p => {
-            L.marker([p.lat, p.lng], { icon: iconoParada(p.numero), zIndexOffset: 1000 })
+            L.marker([p.lat, p.lng], { icon: iconoParada(p.numero, !!p.aviso), zIndexOffset: 1000 })
                 .bindPopup(popupParada(p))
                 .bindTooltip(p.numero + '. ' + escaparHtml(p.nombre), { direction: 'top', offset: [0, -34] })
                 .addTo(estado.capaRuta);

@@ -11,4 +11,5 @@ public static class CodigosNotificacion
     public const string NegocioPendiente = "NEGOCIO_PENDIENTE";
     public const string ReseñaNueva = "RESENA_NUEVA";
     public const string ReseñaRespondida = "RESENA_RESPONDIDA";
+    public const string AlertaMunicipal = "ALERTA_MUNICIPAL";
 }

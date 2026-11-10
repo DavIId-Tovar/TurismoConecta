@@ -1,0 +1,99 @@
+/* Franja de avisos vigentes (ficha del municipio y modal del negocio) */
+
+.avisos {
+    margin: 0 0 2rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid #EFD9A6;
+    border-radius: 14px;
+    background: #FFFBF1;
+}
+
+.avisos.compacta {
+    margin: 0 0 1.25rem;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
+.avisos-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.75rem;
+    color: #7a5f0e;
+}
+
+.avisos-cabecera i { font-size: 1.2rem; color: #C9A227; }
+.avisos-cabecera strong { font-size: 0.95rem; color: #1f1409; }
+.avisos-cabecera span { margin-left: auto; font-size: 0.75rem; font-weight: 600; }
+
+.avisos-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.aviso {
+    border: 1px solid #EAE6DF;
+    border-left: 4px solid #3E6E95;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.aviso.sev-precaucion { border-left-color: #C9A227; }
+.aviso.sev-importante { border-left-color: #A33A2B; }
+
+.aviso-fila {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.65rem 0.8rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+}
+
+.aviso-icono {
+    flex: 0 0 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #E6EEF5;
+    color: #2c5576;
+    font-size: 1rem;
+}
+
+.sev-precaucion .aviso-icono { background: #FBF1D6; color: #7a5f0e; }
+.sev-importante .aviso-icono { background: #F6E1DC; color: #A33A2B; }
+
+.aviso-texto { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.aviso-titulo { font-size: 0.9rem; font-weight: 600; color: #1f1409; overflow-wrap: anywhere; }
+.aviso-meta { font-size: 0.75rem; color: #6b6257; }
+.aviso-caret { color: #9a9187; }
+
+.aviso-detalle {
+    padding: 0 0.9rem 0.8rem 3.4rem;
+}
+
+.aviso-detalle p {
+    margin: 0 0 4px;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: #2d2a26;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.aviso-detalle small { font-size: 0.72rem; color: #6b6257; }
+
+@media (max-width: 560px) {
+    .aviso-detalle { padding-left: 0.9rem; }
+}

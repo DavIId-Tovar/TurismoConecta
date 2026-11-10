@@ -465,6 +465,9 @@
                         }
                     }
 
+                    @* Avisos vigentes en las paradas (se recalcula al cambiar paradas o fechas) *@
+                    <AvisosRuta Paradas="ParadasVistaPrevia" FechaInicio="modelo.FechaInicio" AlCambiarAvisos="AlCambiarAvisos" />
+
                     @if (municipiosSeleccionados.Any())
                     {
                         <div class="lista-paradas-cards">
@@ -484,6 +487,12 @@
                                     <div class="parada-detalles">
                                         <div class="parada-titulo-row">
                                             <h4 class="parada-nombre">@muni.Nombre</h4>
+                                            @if (avisosRuta.TryGetValue(muni.IdMunicipio, out var aviso))
+                                            {
+                                                <span class="badge-aviso-parada" title="@aviso">
+                                                    <i class="ph-fill ph-warning" aria-hidden="true"></i> Aviso
+                                                </span>
+                                            }
                                             <span class="badge-expandir">▼ Ver info</span>
                                         </div>
                                         <span class="parada-clima" title="@(string.IsNullOrWhiteSpace(muni.Clima) ? "Clima de montaña" : muni.Clima)">
@@ -547,7 +556,7 @@
                     @if (municipiosSeleccionados.Any())
                     {
                         <div class="mapa-previa">
-                            <MapaViaje Paradas="ParadasVistaPrevia" Compacto="true" />
+                            <MapaViaje Paradas="ParadasVistaPrevia" Compacto="true" Avisos="avisosRuta" />
                         </div>
                     }
 
@@ -646,6 +655,11 @@
         modelo.FechaInicio is DateOnly inicio && modelo.FechaFin is DateOnly fin && fin >= inicio
             ? fin.DayNumber - inicio.DayNumber + 1
             : municipiosSeleccionados.Count;
+
+    // Alertas municipales: IdMunicipio → aviso vigente en el día de esa parada (lo llena AvisosRuta)
+    private Dictionary<int, string> avisosRuta = new();
+
+    private void AlCambiarAvisos(Dictionary<int, string> avisos) => avisosRuta = avisos;
 
     private TramoRutaDto? TramoDe(int idMunicipio) =>
         rutaEstimada?.Tramos.FirstOrDefault(t => t.IdMunicipio == idMunicipio);

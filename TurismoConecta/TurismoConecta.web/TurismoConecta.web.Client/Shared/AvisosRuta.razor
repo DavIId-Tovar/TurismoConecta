@@ -1,0 +1,127 @@
+@inject AlertaApiService AlertaService
+
+@*
+    "Avisos en tu ruta": alertas vigentes de los municipios del itinerario.
+    Si el viaje tiene fecha de inicio, cada parada se cruza con su día (FechaInicio + Día - 1);
+    sin fechas, cuenta cualquier alerta vigente del municipio.
+    Avisa a la página (AlCambiarAvisos) qué municipios tienen aviso, para marcar la parada y el mapa.
+*@
+@if (porParada.Count > 0)
+{
+    <section class="avisos-ruta" aria-label="Avisos en tu ruta">
+        <header class="ar-cabecera">
+            <i class="ph-fill ph-warning" aria-hidden="true"></i>
+            <div>
+                <strong>Avisos en tu ruta</strong>
+                <span>@TextoResumen</span>
+            </div>
+        </header>
+
+        <ul class="ar-lista">
+            @foreach (var (parada, alertas) in porParada)
+            {
+                @foreach (var alerta in alertas)
+                {
+                    var a = alerta;
+                    var clave = $"{parada.Dia}-{parada.IdMunicipio}-{a.IdAlerta}";
+                    var abierto = abiertos.Contains(clave);
+                    <li class="ar-item @SeveridadesAlerta.Clase(a.Severidad)" @key="clave">
+                        <button type="button" class="ar-fila" aria-expanded="@(abierto ? "true" : "false")" @onclick="() => Alternar(clave)">
+                            <span class="ar-icono" aria-hidden="true"><i class="@TiposAlerta.Icono(a.Tipo)"></i></span>
+                            <span class="ar-texto">
+                                <span class="ar-lugar">Día @parada.Dia · @parada.Nombre@(a.NombreNegocio is null ? "" : $" · {a.NombreNegocio}")</span>
+                                <span class="ar-titulo">@a.Titulo</span>
+                            </span>
+                            <span class="ar-sev">@SeveridadesAlerta.Nombre(a.Severidad)</span>
+                        </button>
+                        @if (abierto)
+                        {
+                            <div class="ar-detalle">
+                                <p>@a.Descripcion</p>
+                                <small>@TiposAlerta.Nombre(a.Tipo) · @a.Rango</small>
+                            </div>
+                        }
+                    </li>
+                }
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    /// <summary>Paradas en el orden de la ruta (las mismas que recibe MapaViaje).</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<ParadaMapa> Paradas { get; set; } = Array.Empty<ParadaMapa>();
+
+    /// <summary>Primer día del viaje; sin ella no se filtra por fecha.</summary>
+    [Parameter] public DateOnly? FechaInicio { get; set; }
+
+    /// <summary>IdMunicipio → título del aviso más grave (para el ⚠ de la parada y el pin del mapa).</summary>
+    [Parameter] public EventCallback<Dictionary<int, string>> AlCambiarAvisos { get; set; }
+
+    private List<(ParadaMapa Parada, List<AlertaDto> Alertas)> porParada = new();
+    private readonly HashSet<string> abiertos = new();
+    private List<AlertaDto> vigentes = new();
+    private string? firmaConsulta;
+    private string? firmaAvisos;
+
+    private string TextoResumen
+    {
+        get
+        {
+            var total = porParada.Sum(p => p.Alertas.Count);
+            var municipios = porParada.Select(p => p.Parada.IdMunicipio).Distinct().Count();
+            return $"{total} aviso{(total != 1 ? "s" : "")} en {municipios} parada{(municipios != 1 ? "s" : "")}"
+                + (FechaInicio.HasValue ? " durante tus fechas" : " · aún no elegiste fechas");
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var ids = Paradas.Select(p => p.IdMunicipio).Distinct().OrderBy(id => id).ToList();
+        var ultimoDia = Paradas.Count == 0 ? 1 : Paradas.Max(p => p.Dia);
+        DateOnly? hasta = FechaInicio?.AddDays(Math.Max(ultimoDia, 1) - 1);
+
+        // Solo se consulta el API si cambian los municipios o las fechas
+        var firma = $"{string.Join(",", ids)}|{FechaInicio}|{hasta}";
+        if (firma != firmaConsulta)
+        {
+            firmaConsulta = firma;
+            vigentes = await AlertaService.ListarVigentesAsync(ids, FechaInicio, hasta);
+        }
+
+        // El cruce por día se recalcula siempre (las paradas pueden cambiar de día sin cambiar de municipio)
+        porParada = Paradas
+            .Select(p =>
+            {
+                DateOnly? dia = FechaInicio?.AddDays(Math.Max(p.Dia, 1) - 1);
+                var alertas = vigentes
+                    .Where(a => a.IdMunicipio == p.IdMunicipio && (dia is null || a.CubreDia(dia.Value)))
+                    .OrderBy(a => SeveridadesAlerta.Peso(a.Severidad))
+                    .ToList();
+                return (Parada: p, Alertas: alertas);
+            })
+            .Where(x => x.Alertas.Count > 0)
+            // Una misma parada repetida el mismo día solo una vez
+            .GroupBy(x => (x.Parada.IdMunicipio, x.Parada.Dia))
+            .Select(g => g.First())
+            .ToList();
+
+        var avisos = porParada
+            .GroupBy(x => x.Parada.IdMunicipio)
+            .ToDictionary(
+                g => g.Key,
+                g => g.SelectMany(x => x.Alertas).OrderBy(a => SeveridadesAlerta.Peso(a.Severidad)).First().Titulo);
+
+        var nuevaFirma = string.Join("|", avisos.OrderBy(k => k.Key).Select(k => $"{k.Key}:{k.Value}"));
+        if (nuevaFirma != firmaAvisos)
+        {
+            firmaAvisos = nuevaFirma;
+            await AlCambiarAvisos.InvokeAsync(avisos);
+        }
+    }
+
+    private void Alternar(string clave)
+    {
+        if (!abiertos.Remove(clave)) abiertos.Add(clave);
+    }
+}

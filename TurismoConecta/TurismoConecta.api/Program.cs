@@ -96,6 +96,7 @@ builder.Services.AddScoped<EntrenadorColaborativo>();
 builder.Services.AddHostedService<EntrenamientoRecomendacionesService>();
 builder.Services.AddScoped<IFavoritoService, FavoritoService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();
+builder.Services.AddScoped<IAlertaService, AlertaService>();
 
 
 

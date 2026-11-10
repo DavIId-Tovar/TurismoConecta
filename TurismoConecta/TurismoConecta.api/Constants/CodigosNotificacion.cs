@@ -18,5 +18,8 @@ namespace TurismoConecta.api.Constants
         public const string ReseñaNueva = "RESENA_NUEVA";
         public const string ReseñaRespondida = "RESENA_RESPONDIDA";
 
+        // Alertas municipales (Database/Scripts/2026-11-10_001_alerta_municipal.sql)
+        public const string AlertaMunicipal = "ALERTA_MUNICIPAL";
+
     }
 }

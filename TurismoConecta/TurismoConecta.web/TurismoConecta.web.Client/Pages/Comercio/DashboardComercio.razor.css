@@ -539,3 +539,9 @@
     cursor: pointer;
     margin-top: 0.5rem;
 }
+
+.comercio-card-ayuda {
+    margin: -0.4rem 0 1rem;
+    font-size: 0.85rem;
+    color: #6b6257;
+}

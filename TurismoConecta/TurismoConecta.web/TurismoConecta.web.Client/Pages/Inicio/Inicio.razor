@@ -50,6 +50,8 @@
 
             <AuthorizeView>
                 <Authorized>
+                    @* Campana de notificaciones (alertas municipales, reseñas…): sin ella el turista no ve sus avisos *@
+                    <CampanaNotificaciones />
                     <button type="button" class="nav-button" aria-label="Mi panel" title="Ir a mi panel" @onclick="IrAlDashboard">
                         <i class="ph ph-squares-four" aria-hidden="true"></i>
                     </button>
