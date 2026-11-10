@@ -432,15 +432,29 @@
                                 <span>de carretera</span>
                             </div>
                         </div>
-                        @if (municipiosSeleccionados.Count > 2)
+                        @* Con tu ubicación el orden importa desde 2 paradas (¿cuál queda más cerca de ti?) *@
+                        @if (municipiosSeleccionados.Count > 2 || (puntoPartida is not null && municipiosSeleccionados.Count > 1))
                         {
                             <div class="orden-ruta">
-                                @if (ordenAutomatico)
+                                @if (ordenAutomatico && puntoPartida is not null)
+                                {
+                                    <span>
+                                        <i class="ph-fill ph-crosshair" aria-hidden="true"></i>
+                                        Ordenada por cercanía desde <strong>tu ubicación</strong>: empiezas por
+                                        <strong>@municipiosSeleccionados[0].Nombre</strong>.
+                                        Mueve una parada con ↑↓ para elegir tu propio orden.
+                                    </span>
+                                    <button type="button" class="sorpresa-btn-texto" @onclick="OlvidarUbicacion">
+                                        <i class="ph ph-x" aria-hidden="true"></i> No usar mi ubicación
+                                    </button>
+                                }
+                                else if (ordenAutomatico)
                                 {
                                     <span>
                                         <i class="ph ph-path" aria-hidden="true"></i>
                                         Ordenada por cercanía desde <strong>@municipiosSeleccionados[0].Nombre</strong>.
-                                        Mueve una parada con ↑↓ para elegir tu propio orden.
+                                        Mueve una parada con ↑↓ para elegir tu propio orden, o pulsa
+                                        <strong>Estoy aquí</strong> en el mapa para empezar desde donde estás.
                                     </span>
                                 }
                                 else
@@ -556,7 +570,7 @@
                     @if (municipiosSeleccionados.Any())
                     {
                         <div class="mapa-previa">
-                            <MapaViaje Paradas="ParadasVistaPrevia" Compacto="true" Avisos="avisosRuta" />
+                            <MapaViaje Paradas="ParadasVistaPrevia" Compacto="true" Avisos="avisosRuta" AlUbicarme="AlUbicarme" />
                         </div>
                     }
 
@@ -655,6 +669,24 @@
         modelo.FechaInicio is DateOnly inicio && modelo.FechaFin is DateOnly fin && fin >= inicio
             ? fin.DayNumber - inicio.DayNumber + 1
             : municipiosSeleccionados.Count;
+
+    // "Estoy aquí" del mapa: con orden automático, la ruta empieza por la parada más conveniente desde aquí.
+    // Solo vive en esta pantalla (no se guarda).
+    private (double Lat, double Lng)? puntoPartida;
+
+    private async Task AlUbicarme((double Lat, double Lng) ubicacion)
+    {
+        puntoPartida = ubicacion;
+        ordenAutomatico = true;
+        await RecalcularRutaAsync();   // el API devuelve el orden y AplicarOrden reacomoda la lista
+    }
+
+    /// <summary>Vuelve a ordenar tomando la primera parada como punto de partida.</summary>
+    private async Task OlvidarUbicacion()
+    {
+        puntoPartida = null;
+        await RecalcularRutaAsync();
+    }
 
     // Alertas municipales: IdMunicipio → aviso vigente en el día de esa parada (lo llena AvisosRuta)
     private Dictionary<int, string> avisosRuta = new();
@@ -1100,7 +1132,7 @@
         calculandoRuta = true;
         await InvokeAsync(StateHasChanged);
 
-        var resultado = await RecoService.EstimarRutaAsync(municipiosSeleccionados.Select(m => m.IdMunicipio), ordenAutomatico, token);
+        var resultado = await RecoService.EstimarRutaAsync(municipiosSeleccionados.Select(m => m.IdMunicipio), ordenAutomatico, token, puntoPartida);
         if (token.IsCancellationRequested) return;
 
         // Orden automático: la lista se acomoda al orden por cercanía que devolvió el API
