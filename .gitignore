@@ -431,3 +431,5 @@ FodyWeavers.xsd
 
 # Archivos comprimidos
 *.zip
+# Archivos locales de BD de cada desarrollador (usuarios copiados de Azure, etc.)
+Database/Local/

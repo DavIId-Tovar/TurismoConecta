@@ -13,6 +13,8 @@
 ## Carpetas
 - `Baseline/`: foto del esquema y de los datos de catálogo al 2026-11-08, tomada de Azure. No se ejecuta en prod.
 - `Scripts/`: cambios posteriores, en orden.
+- `Semillas/`: datos de prueba ficticios, SOLO para la BD local (`*_Dev`). Nunca en Azure.
+- `Local/`: archivos personales de cada desarrollador (por ejemplo, usuarios copiados de Azure). Ignorada por git.
 
 
 ## Levantar la BD desde cero (desarrollo local)
@@ -25,7 +27,9 @@
 3. Comprobar: `SELECT * FROM dbo.HistorialScripts ORDER BY nombreScript;`
 4. Apuntar el API a la BD local (user-secrets, nunca en appsettings):
    `dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=TurismoConectaDB_Dev;Trusted_Connection=True;TrustServerCertificate=True;" --project TurismoConecta/TurismoConecta.api`
-5. La BD local no trae usuarios: registrarse desde la app.
+5. La BD local no trae usuarios. Opcional: ejecutar `Semillas/2026-11-09_semilla_desarrollo.sql`
+   para tener usuarios, negocios, reseñas, favoritos e itinerarios de prueba
+   (la contraseña de los usuarios de prueba está en el encabezado del script).
 
 ## Cómo hacer un cambio de esquema
 1. Escribir el script en `Scripts/` con el nombre `AAAA-MM-DD_NNN_descripcion.sql`.
