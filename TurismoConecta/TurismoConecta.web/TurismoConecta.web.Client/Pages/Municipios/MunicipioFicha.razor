@@ -149,6 +149,9 @@
 
         <!-- CUERPO PRINCIPAL DEL ARTÍCULO -->
         <main class="selva-articulo">
+            <!-- AVISOS VIGENTES (alertas municipales): no pinta nada si no hay -->
+            <AvisosMunicipio IdMunicipio="ficha.IdMunicipio" />
+
             <!-- SECCIÓN 1: INTRODUCCIÓN EDITORIAL -->
             @if (!string.IsNullOrWhiteSpace(ficha.Descripcion))
             {
@@ -512,6 +515,9 @@
 
                     <!-- CUERPO DE DETALLES -->
                     <div class="modal-negocio-cuerpo">
+
+                        <!-- AVISOS DEL ESTABLECIMIENTO (cierres, cambios de horario) -->
+                        <AvisosMunicipio IdMunicipio="ficha.IdMunicipio" IdNegocio="negocioModal.IdNegocio" Compacta="true" />
 
                         @if (!string.IsNullOrWhiteSpace(negocioModal.Descripcion))
                         {

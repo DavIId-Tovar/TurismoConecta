@@ -134,12 +134,15 @@
                 </div>
             }
 
+            @* AVISOS EN LA RUTA (alertas municipales): no pinta nada si no hay *@
+            <AvisosRuta Paradas="paradasMapa" FechaInicio="itinerario.FechaInicio" AlCambiarAvisos="AlCambiarAvisos" />
+
             @* MAPA DE LA RUTA *@
             @if (itinerario.Paradas.Any())
             {
                 <div class="compartido-seccion">
                     <span class="compartido-seccion-label">Mapa de la Ruta</span>
-                    <MapaViaje Paradas="paradasMapa" />
+                    <MapaViaje Paradas="paradasMapa" Avisos="avisosRuta" />
                 </div>
             }
 
@@ -171,7 +174,15 @@
                                             <div class="parada-encabezado">
                                                 <div class="parada-orden">@parada.Orden</div>
                                                 <div class="parada-info">
-                                                    <h3 class="parada-municipio-nombre">@parada.NombreMunicipio</h3>
+                                                    <h3 class="parada-municipio-nombre">
+                                                        @parada.NombreMunicipio
+                                                        @if (avisosRuta.TryGetValue(parada.IdMunicipio, out var aviso))
+                                                        {
+                                                            <span class="badge-aviso-parada" title="@aviso">
+                                                                <i class="ph-fill ph-warning" aria-hidden="true"></i> Aviso
+                                                            </span>
+                                                        }
+                                                    </h3>
                                                     <a href="/municipios/@parada.IdMunicipio" target="_blank" class="link-ver-municipio">
                                                         Ver guía completa del municipio ↗
                                                     </a>
@@ -266,6 +277,9 @@
     private bool enlaceCopiado = false;
     private Dictionary<int, List<NegocioResumenDto>> negociosPorMunicipio = new();
     private List<ParadaMapa> paradasMapa = new();   // mapa de la ruta
+    private Dictionary<int, string> avisosRuta = new();   // IdMunicipio → aviso vigente (lo llena AvisosRuta)
+
+    private void AlCambiarAvisos(Dictionary<int, string> avisos) => avisosRuta = avisos;
 
     protected override async Task OnInitializedAsync()
     {

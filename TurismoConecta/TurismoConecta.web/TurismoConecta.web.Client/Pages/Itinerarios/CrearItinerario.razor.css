@@ -1399,3 +1399,19 @@
 .mapa-previa {
     margin: 16px 0 4px;
 }
+
+/* Parada con alerta municipal vigente (AvisosRuta) */
+.badge-aviso-parada {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #F6E1DC;
+    color: #A33A2B;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    white-space: nowrap;
+}

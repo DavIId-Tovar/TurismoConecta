@@ -103,6 +103,9 @@
     /// <summary>Vista previa (Crear itinerario): mapa más bajo, sin resumen ni capa de negocios.</summary>
     [Parameter] public bool Compacto { get; set; }
 
+    /// <summary>Alertas municipales: IdMunicipio → título del aviso (lo llena AvisosRuta). El pin lleva un "!".</summary>
+    [Parameter] public IReadOnlyDictionary<int, string>? Avisos { get; set; }
+
     private readonly string idMapa = $"mapa-viaje-{Guid.NewGuid():N}";
     private string? firmaDibujada;
     private string? firmaNegocios;
@@ -193,14 +196,17 @@
     {
         // Se redibuja solo si cambió algo de la ruta (orden, paradas o tramos)
         var firma = string.Join("|", Paradas.Select(p => $"{p.IdMunicipio}:{p.Latitud}:{p.Longitud}:{p.KmDesdeAnterior}"))
-            + $"|real:{HayCarreteraReal}:{trazado?.KmTotal}";
+            + $"|real:{HayCarreteraReal}:{trazado?.KmTotal}"
+            + $"|avisos:{(Avisos is null ? "" : string.Join(",", Avisos.Keys.OrderBy(k => k)))}";
 
         if (firma == firmaDibujada && !firstRender) return;
         firmaDibujada = firma;
 
         try
         {
-            await JS.InvokeVoidAsync("mapaViaje.dibujar", idMapa, DatosParaJs());
+            // Con OpenRouteService se dibuja la carretera real; sin ella (o si falló) JS traza la línea recta punteada
+            var geometria = HayCarreteraReal && trazado!.Geometria.Count > 1 ? trazado.Geometria : null;
+            await JS.InvokeVoidAsync("mapaViaje.dibujar", idMapa, DatosParaJs(), geometria);
             jsListo = true;
             if (firstRender) await PintarNegociosAsync();
         }
@@ -225,7 +231,8 @@
             // El tramo se muestra desde la parada anterior que sí está en el mapa
             kmDesdeAnterior = i == 0 ? null : p.KmDesdeAnterior,
             duracion = Duracion(p.MinutosDesdeAnterior ?? 0),
-            desdeNombre = i == 0 ? null : conUbicacion[i - 1].Nombre
+            desdeNombre = i == 0 ? null : conUbicacion[i - 1].Nombre,
+            aviso = Avisos is not null && Avisos.TryGetValue(p.IdMunicipio, out var aviso) ? aviso : null
         }).ToArray();
     }
 

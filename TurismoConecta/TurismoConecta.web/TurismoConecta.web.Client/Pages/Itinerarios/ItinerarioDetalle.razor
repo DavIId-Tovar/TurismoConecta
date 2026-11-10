@@ -203,6 +203,9 @@
         </div>
 
         <div class="detalle-container">
+            @* AVISOS EN LA RUTA (alertas municipales): no pinta nada si no hay *@
+            <AvisosRuta Paradas="paradasMapa" FechaInicio="itinerario.FechaInicio" AlCambiarAvisos="AlCambiarAvisos" />
+
             @* MAPA DE LA RUTA *@
             @if (itinerario.Paradas.Any())
             {
@@ -214,7 +217,7 @@
                             <span class="seccion-subtitulo">Distancias aproximadas por carretera · toca un pin para ver la parada</span>
                         </div>
                     </div>
-                    <MapaViaje Paradas="paradasMapa" />
+                    <MapaViaje Paradas="paradasMapa" Avisos="avisosRuta" />
                 </div>
             }
 
@@ -254,6 +257,12 @@
                                                 <div class="parada-info-texto">
                                                     <span class="parada-orden-num">@parada.Orden</span>
                                                     <span class="parada-municipio-nombre">@parada.NombreMunicipio</span>
+                                                    @if (avisosRuta.TryGetValue(parada.IdMunicipio, out var aviso))
+                                                    {
+                                                        <span class="badge-aviso-parada" title="@aviso">
+                                                            <i class="ph-fill ph-warning" aria-hidden="true"></i> Aviso
+                                                        </span>
+                                                    }
                                                     <span class="badge-ver-parada">Ver guía del pueblo ↗</span>
                                                 </div>
                                             </div>
@@ -428,6 +437,9 @@
     private bool cambiandoCompartir = false;
     private Dictionary<int, List<NegocioResumenDto>> hotelesPorMunicipio = new();
     private List<ParadaMapa> paradasMapa = new();   // mapa de la ruta
+    private Dictionary<int, string> avisosRuta = new();   // IdMunicipio → aviso vigente (lo llena AvisosRuta)
+
+    private void AlCambiarAvisos(Dictionary<int, string> avisos) => avisosRuta = avisos;
 
     // Modal de información del municipio
     private MunicipioFichaDto? municipioModal;
