@@ -39,6 +39,7 @@ RegistrarApi<ReseñaApiService>();
 RegistrarApi<RecomendacionApiService>();
 RegistrarApi<AlertaApiService>();
 RegistrarApi<VisibilidadApiService>();
+RegistrarApi<VerificacionCorreoApiService>();
 
 //Servicios clave para que <AuthorizeView> no se congele:
 builder.Services.AddScoped<NotificacionTiempoRealService>();

@@ -1,0 +1,86 @@
+@implements IDisposable
+@inject VerificacionCorreoApiService Verificacion
+
+@* Aviso "Confirma tu correo" con botón para pedir otro enlace.
+   Lo usan Perfil y FormularioResena; el padre decide si mostrarlo. *@
+
+<div class="aviso-correo" role="status">
+    <i class="ph-fill ph-envelope-simple-open aviso-correo-icono" aria-hidden="true"></i>
+    <div class="aviso-correo-texto">
+        <strong>Confirma tu correo @Motivo</strong>
+        <p>
+            Te enviamos un enlace a <span class="aviso-correo-email">@Email</span>.
+            Ábrelo para activar tu cuenta. ¿No te llegó? Revisa la carpeta de spam o pide otro.
+        </p>
+
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <p class="aviso-correo-mensaje @(exito ? "ok" : "error")">
+                <i class="@(exito ? "ph ph-check-circle" : "ph ph-warning-circle")" aria-hidden="true"></i> @mensaje
+            </p>
+        }
+    </div>
+
+    <button type="button" class="aviso-correo-boton" @onclick="Reenviar" disabled="@(enviando || segundos > 0)">
+        @if (enviando)
+        {
+            <span>Enviando...</span>
+        }
+        else if (segundos > 0)
+        {
+            <span>Pedir otro en @segundos s</span>
+        }
+        else
+        {
+            <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
+            <span>Reenviar enlace</span>
+        }
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Email { get; set; } = string.Empty;
+
+    /// <summary>Complemento del título, p. ej. "para publicar reseñas".</summary>
+    [Parameter] public string? Motivo { get; set; }
+
+    private bool enviando;
+    private bool exito;
+    private string? mensaje;
+    private int segundos;
+    private CancellationTokenSource? cuentaAtras;
+
+    private async Task Reenviar()
+    {
+        enviando = true;
+        mensaje = null;
+
+        var (ok, texto, espera) = await Verificacion.ReenviarAsync();
+        enviando = false;
+        exito = ok;
+        mensaje = texto;
+
+        if (espera > 0) _ = ContarAsync(espera);
+    }
+
+    // Deshabilita el botón mientras la API no permita otro envío
+    private async Task ContarAsync(int desde)
+    {
+        cuentaAtras?.Cancel();
+        cuentaAtras = new CancellationTokenSource();
+        var token = cuentaAtras.Token;
+
+        try
+        {
+            for (segundos = desde; segundos > 0; segundos--)
+            {
+                StateHasChanged();
+                await Task.Delay(1000, token);
+            }
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    public void Dispose() => cuentaAtras?.Cancel();
+}

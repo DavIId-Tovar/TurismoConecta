@@ -1,0 +1,113 @@
+@page "/verificar-correo"
+@layout EmptyLayout
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject VerificacionCorreoApiService Verificacion
+
+<PageTitle>Confirmar correo | TurismoConecta</PageTitle>
+
+<div class="page-background">
+    <div class="premium-card">
+
+        <div class="form-section">
+            <div class="form-wrapper">
+
+                <a href="/" class="brand" title="Ir al inicio">
+                    <i class="ph-fill ph-compass"></i>
+                    <span>TurismoConecta</span>
+                </a>
+
+                <div class="header-text">
+                    <h1>Confirmación de correo</h1>
+                </div>
+
+                <div class="estado-verificacion">
+                    @if (verificando)
+                    {
+                        <div class="spinner-grande" aria-hidden="true"></div>
+                        <p>Estamos confirmando tu correo...</p>
+                    }
+                    else if (exito)
+                    {
+                        <i class="ph-fill ph-seal-check icono-estado ok" aria-hidden="true"></i>
+                        <p><strong>@mensaje</strong></p>
+                        @if (!string.IsNullOrEmpty(email))
+                        {
+                            <p>La cuenta <strong>@email</strong> ya puede publicar reseñas.</p>
+                        }
+
+                        <div class="acciones-verificacion">
+                            @if (autenticado)
+                            {
+                                <a href="/" class="submit-btn"><span>Ir al inicio</span> <i class="ph-bold ph-arrow-right"></i></a>
+                            }
+                            else
+                            {
+                                <a href="/login" class="submit-btn"><span>Iniciar sesión</span> <i class="ph-bold ph-arrow-right"></i></a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <i class="ph-fill ph-warning-circle icono-estado error" aria-hidden="true"></i>
+                        <p><strong>@(vencido ? "Este enlace ya venció" : "No pudimos confirmar tu correo")</strong></p>
+                        <p>@mensaje</p>
+
+                        <div class="acciones-verificacion">
+                            @if (autenticado)
+                            {
+                                <a href="/perfil" class="submit-btn"><span>Pedir un enlace nuevo</span> <i class="ph-bold ph-paper-plane-tilt"></i></a>
+                            }
+                            else
+                            {
+                                <a href="/login?returnUrl=%2Fperfil" class="submit-btn"><span>Inicia sesión para pedir otro</span> <i class="ph-bold ph-sign-in"></i></a>
+                            }
+                            <a href="/" class="enlace-secundario">Volver al inicio</a>
+                        </div>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+        <div class="image-section">
+            <img src="images/nobsaRegistro.jpg" alt="Nobsa, Boyacá" />
+            <div class="image-overlay"></div>
+            <div class="image-content">
+                <div class="glass-card">
+                    <h2>Un paso más</h2>
+                    <p>Confirmar tu correo nos ayuda a que las reseñas de Boyacá las escriban viajeros reales.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Token { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private bool verificando = true;
+    private bool exito;
+    private bool vencido;
+    private bool autenticado;
+    private string? mensaje;
+    private string? email;
+
+    protected override async Task OnInitializedAsync()
+    {
+        autenticado = AuthState is not null
+            && (await AuthState).User.Identity?.IsAuthenticated == true;
+
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            mensaje = "Al enlace le falta el código de verificación. Ábrelo directamente desde el correo.";
+            verificando = false;
+            return;
+        }
+
+        (exito, mensaje, vencido, email) = await Verificacion.VerificarAsync(Token);
+        verificando = false;
+    }
+}

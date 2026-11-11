@@ -1,0 +1,266 @@
+﻿::deep * {
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+}
+
+/* El fondo principal ahora tiene un color muy suave (gris/azulado claro) en lugar de blanco puro */
+.page-background {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Ajustado para convivir con el navbar superior de Blazor */
+    width: 100%;
+    background-color: #f4f7f8; /* Color de fondo anti-plano */
+    padding: 2rem;
+}
+
+/* La tarjeta que contiene todo, con sombras premium */
+.premium-card {
+    display: flex;
+    width: 100%;
+    max-width: 1100px; /* Ancho máximo de la tarjeta */
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), 0 2px 15px rgba(0,0,0,0.03); /* Sombra 3D suave */
+}
+
+/* --- SECCIÓN DEL FORMULARIO --- */
+.form-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4rem 3rem;
+}
+
+.form-wrapper {
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1a7a7a;
+    margin-bottom: 2.5rem;
+}
+
+    .brand i {
+        font-size: 2.2rem;
+    }
+
+.header-text {
+    margin-bottom: 2rem;
+}
+
+    .header-text h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .header-text p {
+        font-size: 0.95rem;
+        color: #6b7280;
+        margin: 0;
+    }
+
+/* --- GRUPOS DE INPUTS --- */
+.submit-btn {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, #1a7a7a 0%, #115555 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(26, 122, 122, 0.25);
+}
+
+    .submit-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(26, 122, 122, 0.35);
+    }
+
+    .submit-btn:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    .submit-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
+
+/* --- SPINNER --- */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- ENLACE DE REGISTRO --- */
+.register-link {
+    text-align: center;
+    margin-top: 2rem;
+    color: #6b7280;
+    font-size: 0.95rem;
+}
+
+    .register-link a {
+        color: #1a7a7a;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+/* --- SECCIÓN DE LA IMAGEN (DERECHA) --- */
+.image-section {
+    flex: 1.1;
+    position: relative;
+    overflow: hidden;
+    display: none;
+}
+
+@media (min-width: 900px) {
+    .image-section {
+        display: block;
+    }
+}
+
+.image-section img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(26, 122, 122, 0.8) 100%);
+    z-index: 1;
+}
+
+.image-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 3.5rem;
+    z-index: 2;
+}
+
+/* Efecto Glassmorphism (Vidrio esmerilado) mejorado */
+.glass-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 2.5rem;
+    border-radius: 20px;
+    color: white;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+    .glass-card h2 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0 0 1rem 0;
+        line-height: 1.2;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    .glass-card p {
+        font-size: 1.05rem;
+        line-height: 1.6;
+        margin: 0;
+        opacity: 0.95;
+        text-shadow: 0 1px 5px rgba(0,0,0,0.3);
+    }
+
+
+
+/* --- CAMPO DE CONTRASEÑA CON OJO INTEGRADO --- */
+
+/* ── Estados de la verificación ── */
+.estado-verificacion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0 4px;
+    text-align: center;
+}
+
+.estado-verificacion .icono-estado {
+    font-size: 3.4rem;
+}
+
+.estado-verificacion .icono-estado.ok { color: #2F6B45; }
+.estado-verificacion .icono-estado.error { color: #B3261E; }
+
+.estado-verificacion p {
+    margin: 0;
+    color: #4B5563;
+    line-height: 1.5;
+}
+
+.spinner-grande {
+    width: 44px;
+    height: 44px;
+    border: 4px solid #E5E7EB;
+    border-top-color: #1A6FA8;
+    border-radius: 50%;
+    animation: girar 0.9s linear infinite;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.acciones-verificacion {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: 6px;
+}
+
+.acciones-verificacion .submit-btn { text-decoration: none; }
+
+.enlace-secundario {
+    color: #6B7280;
+    font-size: 0.9rem;
+}

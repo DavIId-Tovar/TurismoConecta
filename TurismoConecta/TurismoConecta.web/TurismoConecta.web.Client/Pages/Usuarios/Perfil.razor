@@ -62,6 +62,11 @@
         else if (perfilActual != null)
         {
             <div class="card-body">
+                @if (!perfilActual.EmailConfirmado)
+                {
+                    <AvisoVerificarCorreo Email="@perfilActual.Email" Motivo="para publicar reseñas" />
+                }
+
                 <EditForm Model="@modeloFormulario" OnValidSubmit="GuardarCambios">
 
                     <div class="input-group">

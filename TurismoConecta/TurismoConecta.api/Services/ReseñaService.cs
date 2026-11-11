@@ -43,6 +43,12 @@ namespace TurismoConecta.api.Services
 
         public async Task<(ResultadoReseña resultado, string? error, ReseñaDto? creada)> CrearAsync(int idUsuario, CrearReseñaDto dto)
         {
+            // Módulo 1: solo publica quien confirmó su correo (evita cuentas falsas que inflen calificaciones)
+            bool correoConfirmado = await _context.Usuarios
+                .AnyAsync(u => u.IdUsuario == idUsuario && u.EmailConfirmado);
+            if (!correoConfirmado)
+                return (ResultadoReseña.SinPermiso, "Confirma tu correo para publicar reseñas.", null);
+
             // Exactamente un lugar: o un municipio o un negocio
             if ((dto.IdMunicipio is null) == (dto.IdNegocio is null))
                 return (ResultadoReseña.Invalida, "Indica un municipio o un negocio (solo uno).", null);

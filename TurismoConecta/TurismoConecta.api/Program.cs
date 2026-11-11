@@ -69,6 +69,7 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IVerificacionCorreoService, VerificacionCorreoService>();
 builder.Services.AddSignalR();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

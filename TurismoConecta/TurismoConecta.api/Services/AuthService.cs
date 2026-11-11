@@ -19,10 +19,13 @@ public class AuthService : IAuthService
     private readonly JwtService _jwt;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
+    private readonly IVerificacionCorreoService _verificacion;
     private readonly PasswordHasher<Usuario> _hasher = new();
 
-    public AuthService(AppDbContext db, JwtService jwt, IEmailService emailService, IConfiguration configuration)
+    public AuthService(AppDbContext db, JwtService jwt, IEmailService emailService, IConfiguration configuration,
+        IVerificacionCorreoService verificacion)
     {
+        _verificacion = verificacion;
         _db = db;
         _jwt = jwt;
         _emailService = emailService;
@@ -56,6 +59,9 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
 
         nuevoUsuario.IdRolNavigation = rolUsuario;
+
+        // Correo con el enlace de verificación (si el SMTP falla, puede pedir otro desde su perfil)
+        await _verificacion.EnviarAsync(nuevoUsuario);
 
         var (token, expira) = _jwt.GenerarToken(nuevoUsuario);
         return new AuthResponseDto

@@ -26,6 +26,8 @@
                     <p>Regístrate para empezar a planear tu viaje.</p>
                 </div>
 
+                @if (!registroExitoso)
+                {
                 <EditForm Model="@modelo" OnValidSubmit="HacerRegistro">
 
                     <!-- Fila agrupada para Nombre y Apellido (Ahorra espacio vertical) -->
@@ -79,6 +81,7 @@
                         }
                     </button>
                 </EditForm>
+                }
 
                 @if (!string.IsNullOrEmpty(mensajeError))
                 {
@@ -91,9 +94,16 @@
                 @if (registroExitoso)
                 {
                     <div class="alert success-alert">
-                        <i class="ph-fill ph-check-circle"></i>
-                        <span>¡Cuenta creada con éxito! Redirigiendo a inicio de sesión...</span>
+                        <i class="ph-fill ph-envelope-simple-open"></i>
+                        <span>
+                            ¡Cuenta creada! Te enviamos un enlace a <strong>@correoRegistrado</strong> para confirmar tu correo.
+                            Ya puedes iniciar sesión; para publicar reseñas necesitas confirmarlo.
+                        </span>
                     </div>
+                    <a href="/login" class="submit-btn" style="text-decoration: none; margin-top: 1rem;">
+                        <span>Ir a iniciar sesión</span>
+                        <i class="ph-bold ph-arrow-right"></i>
+                    </a>
                 }
 
                 <div class="register-link">
@@ -122,6 +132,7 @@
     private string mensajeError = string.Empty;
     private bool cargando = false;
     private bool registroExitoso = false;
+    private string correoRegistrado = string.Empty;
 
     private async Task HacerRegistro()
     {
@@ -135,16 +146,15 @@
 
             if (resultadoHttp.IsSuccessStatusCode)
             {
+                // Sin redirección automática: el usuario debe leer que le llegó un correo
+                correoRegistrado = modelo.Email;
                 registroExitoso = true;
-                await Task.Delay(2000);
-                NavManager.NavigateTo("/login");
             }
             else if (resultadoHttp.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
-                var contenido = await resultadoHttp.Content.ReadAsStringAsync();
-                mensajeError = string.IsNullOrWhiteSpace(contenido)
-                    ? "Ya existe una cuenta registrada con ese correo."
-                    : contenido;
+                // La API responde { "mensaje": "..." }: antes se mostraba el JSON crudo
+                mensajeError = await ErrorApi.LeerMensajeAsync(resultadoHttp,
+                    "Ya existe una cuenta registrada con ese correo.");
             }
             else
             {

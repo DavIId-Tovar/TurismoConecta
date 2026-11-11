@@ -13,11 +13,13 @@ namespace TurismoConecta.api.Services
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly IVerificacionCorreoService _verificacion;
         private readonly PasswordHasher<Usuario> _hasher = new();
 
 
-        public UsuarioService(AppDbContext context, IWebHostEnvironment env)
+        public UsuarioService(AppDbContext context, IWebHostEnvironment env, IVerificacionCorreoService verificacion)
         {
+            _verificacion = verificacion;
             _context = context;
             _env = env;
         }
@@ -61,7 +63,8 @@ namespace TurismoConecta.api.Services
                 Email = usuario.Email,
                 Telefono = usuario.Telefono,
                 Rol = usuario.IdRolNavigation.Nombre,
-                FotoUrl = usuario.FotoUrl 
+                FotoUrl = usuario.FotoUrl,
+                EmailConfirmado = usuario.EmailConfirmado
             };
         }
 
@@ -314,6 +317,9 @@ namespace TurismoConecta.api.Services
 
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
+
+            // El dueño de la cuenta confirma el correo que escribió el administrador
+            await _verificacion.EnviarAsync(usuario);
             return (true, null);
         }
 

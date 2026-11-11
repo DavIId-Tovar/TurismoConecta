@@ -1,5 +1,6 @@
 @inject ReseñaApiService ReseñaService
 @inject NavigationManager Nav
+@inject VerificacionCorreoApiService Verificacion
 
 <div class="form-resena">
     @if (!autenticado)
@@ -25,6 +26,11 @@
                     : "Tu reseña quedó en revisión: la alcaldía la verificará antes de publicarla.")
             </p>
         </div>
+    }
+    else if (estadoCorreo is { EmailConfirmado: false })
+    {
+        @* Módulo 1: la API rechaza reseñas de cuentas sin correo confirmado *@
+        <AvisoVerificarCorreo Email="@estadoCorreo.Email" Motivo="para publicar reseñas" />
     }
     else if (!abierto)
     {
@@ -85,6 +91,7 @@
     private bool abierto;
     private bool enviando;
     private ReseñaDto? mia;
+    private EstadoCorreoResponse? estadoCorreo;
     private int calificacion;
     private string? comentario;
     private string? error;
@@ -96,6 +103,7 @@
         cargadoPara = (IdMunicipio, IdNegocio);
 
         mia = null;
+        estadoCorreo = null;
         Cancelar();
 
         autenticado = AuthState is not null
@@ -104,7 +112,10 @@
 
         // HU-28: una reseña por lugar → si ya opinó, no le mostramos el formulario
         cargando = true;
-        mia = await ReseñaService.ObtenerMiaAsync(IdMunicipio, IdNegocio);
+        var tareaMia = ReseñaService.ObtenerMiaAsync(IdMunicipio, IdNegocio);
+        var tareaCorreo = Verificacion.ObtenerEstadoAsync();
+        mia = await tareaMia;
+        estadoCorreo = await tareaCorreo;
         cargando = false;
     }
 

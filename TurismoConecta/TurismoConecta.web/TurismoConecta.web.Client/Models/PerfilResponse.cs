@@ -9,5 +9,6 @@
         public string? Telefono { get; set; }
         public string Rol { get; set; } = string.Empty;
         public string? FotoUrl { get; set; }
+        public bool EmailConfirmado { get; set; }
     }
 }
