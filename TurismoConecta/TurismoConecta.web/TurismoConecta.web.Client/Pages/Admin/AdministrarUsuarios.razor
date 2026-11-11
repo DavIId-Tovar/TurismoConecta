@@ -240,7 +240,7 @@
                                 <div class="foto-editor-box">
                                     <div class="foto-preview-wrapper">
                                         <img src="@previewFotoModal" alt="Foto de perfil" class="foto-preview-img"
-                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=@Uri.EscapeDataString(usuarioParaEditar?.NombreCompleto ?? "U")&background=213b31&color=fff';" />
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=@Uri.EscapeDataString(usuarioParaEditar.NombreCompleto ?? "U")&background=213b31&color=fff';" />
                                         @if (formEdicion.EliminarFoto)
                                         {
                                             <span class="foto-badge-eliminada">Se eliminará</span>
