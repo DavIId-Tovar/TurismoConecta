@@ -1,0 +1,57 @@
+.exportar-itinerario {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.exportar-botones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-exportar {
+    flex: 1 1 200px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 16px;
+    border: 1px solid var(--acento-bosque, #213B31);
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: var(--acento-bosque, #213B31);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-exportar i { font-size: 1.2rem; }
+
+.btn-exportar:hover:not(:disabled) {
+    background: var(--acento-bosque, #213B31);
+    color: #FFFFFF;
+}
+
+.btn-exportar:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.exportar-ayuda {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--txt-secundario, #5A6961);
+}
+
+.exportar-error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.86rem;
+    color: #B3261E;
+}

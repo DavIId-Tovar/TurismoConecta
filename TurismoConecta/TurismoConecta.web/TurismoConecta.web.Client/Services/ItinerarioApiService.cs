@@ -110,7 +110,39 @@ namespace TurismoConecta.web.Client.Services
             if (!respuesta.IsSuccessStatusCode) return null;
             return await respuesta.Content.ReadFromJsonAsync<CompartirResultado>();
         }
+
+        // ── EXPORTAR (PDF / calendario .ics) ───────────────────────────────
+        // Llama a: GET api/itinerarios/{id}/exportar/{formato}
+        //      o:  GET api/itinerarios/compartido/{codigo}/exportar/{formato}  (sin sesión)
+        // Devuelve el archivo listo para entregar al navegador, o el mensaje de error
+        public async Task<(ArchivoDescargado? Archivo, string? Error)> ExportarAsync(
+            int? idItinerario, Guid? codigoCompartir, string formato, CancellationToken ct = default)
+        {
+            var url = codigoCompartir is Guid codigo
+                ? $"api/itinerarios/compartido/{codigo}/exportar/{formato}"
+                : $"api/itinerarios/{idItinerario}/exportar/{formato}";
+
+            try
+            {
+                var respuesta = await _http.GetAsync(url, ct);
+                if (!respuesta.IsSuccessStatusCode)
+                    return (null, await ErrorApi.LeerMensajeAsync(respuesta, "No se pudo generar el archivo."));
+
+                var nombre = respuesta.Content.Headers.ContentDisposition?.FileNameStar
+                             ?? respuesta.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                             ?? $"itinerario.{formato}";
+                var tipo = respuesta.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+
+                return (new ArchivoDescargado(nombre, tipo, await respuesta.Content.ReadAsByteArrayAsync(ct)), null);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                return (null, "No se pudo conectar con el servidor.");
+            }
+        }
     }
+
+    public record ArchivoDescargado(string Nombre, string Tipo, byte[] Contenido);
 
     // ── DTOs del cliente ───────────────────────────────────────────────────
 

@@ -70,6 +70,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IVerificacionCorreoService, VerificacionCorreoService>();
+builder.Services.AddScoped<TurismoConecta.api.Services.Exportacion.IExportarItinerarioService,
+                           TurismoConecta.api.Services.Exportacion.ExportarItinerarioService>();
+
+// QuestPDF (PDF de itinerarios): licencia Community, gratuita para este proyecto
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddSignalR();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
