@@ -97,6 +97,7 @@ builder.Services.AddHostedService<EntrenamientoRecomendacionesService>();
 builder.Services.AddScoped<IFavoritoService, FavoritoService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();
 builder.Services.AddScoped<IAlertaService, AlertaService>();
+builder.Services.AddScoped<IVisibilidadService, VisibilidadService>();
 
 
 
@@ -113,7 +114,9 @@ builder.Services.AddCors(options =>
             .WithOrigins(origenesPermitidos)
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials(); 
+            .AllowCredentials()
+            // El nombre del CSV del reporte municipal viaja en esta cabecera
+            .WithExposedHeaders("Content-Disposition"); 
 
   
     });

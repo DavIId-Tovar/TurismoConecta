@@ -8,6 +8,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ApiConfig Api
+@inject VisibilidadApiService Visibilidad
 
 <HeadContent>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -620,14 +621,16 @@
                                 <a href="@ObtenerUrlWhatsApp(negocioModal, ficha.Nombre)"
                                    target="_blank"
                                    rel="noopener noreferrer"
-                                   class="btn-contacto-ws">
+                                   class="btn-contacto-ws"
+                                   @onclick="() => RegistrarClic(TiposEventoVisibilidad.ClicWhatsApp)">
                                     <i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Contactar por WhatsApp
                                 </a>
                             }
 
                             @if (!string.IsNullOrWhiteSpace(negocioModal.Telefono))
                             {
-                                <a href="tel:@negocioModal.Telefono" class="btn-contacto-tel">
+                                <a href="tel:@negocioModal.Telefono" class="btn-contacto-tel"
+                                   @onclick="() => RegistrarClic(TiposEventoVisibilidad.ClicTelefono)">
                                     <i class="ph ph-phone" aria-hidden="true"></i> Llamar directamente
                                 </a>
                             }
@@ -635,7 +638,8 @@
                             <a href="@ObtenerUrlGoogleMapsNegocio(negocioModal, ficha.Nombre)"
                                target="_blank"
                                rel="noopener noreferrer"
-                               class="btn-contacto-mapa">
+                               class="btn-contacto-mapa"
+                               @onclick="() => RegistrarClic(TiposEventoVisibilidad.ClicComoLlegar)">
                                 <i class="ph ph-map-trifold" aria-hidden="true"></i> Ver en Google Maps
                             </a>
                         </div>
@@ -739,6 +743,9 @@
 
         // Muestra la ficha de inmediato; negocios, sitios y categorías llegan después
         StateHasChanged();
+
+        // Estadísticas: cuenta la vista sin esperar la respuesta (nunca frena la página)
+        _ = Visibilidad.VistaMunicipioAsync(ficha.IdMunicipio);
 
         await Task.WhenAll(
             CargarNegociosAsync(),
@@ -846,9 +853,16 @@
         negocioModal = negocio;
         imagenModalActiva = 0;
         hospedajeGuardado = false;
+        _ = Visibilidad.VistaNegocioAsync(negocio.IdNegocio);
     }
 
     private void CerrarModalNegocio() => negocioModal = null;
+
+    // Estadísticas del comercio: el enlace se abre normal; el registro va en segundo plano
+    private void RegistrarClic(string tipo)
+    {
+        if (negocioModal is not null) _ = Visibilidad.ClicNegocioAsync(tipo, negocioModal.IdNegocio);
+    }
 
     private void GuardarHospedajeEnItinerario() => hospedajeGuardado = true;
 

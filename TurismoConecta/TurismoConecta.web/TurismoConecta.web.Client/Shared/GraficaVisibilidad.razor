@@ -1,0 +1,178 @@
+@* Vistas (barras) y contactos (línea) por día, en un solo eje: las dos son conteos de personas.
+   Tooltip al pasar el mouse o con el teclado (Tab) y tabla con los mismos datos. *@
+@using System.Globalization
+
+@if (Serie.Count == 0 || maximo == 0)
+{
+    <div class="vis-grafica-vacia">
+        <i class="ph ph-chart-bar" aria-hidden="true"></i>
+        <p>Aún no hay vistas ni contactos en este periodo. La gráfica se llena a medida que los turistas abren tu ficha.</p>
+    </div>
+}
+else
+{
+    <div class="vis-grafica">
+        <div class="vis-leyenda" aria-hidden="true">
+            <span><i class="vis-clave-barra"></i>Vistas</span>
+            <span><i class="vis-clave-linea"></i>Contactos</span>
+        </div>
+
+        <div class="vis-lienzo">
+            <svg viewBox="0 0 @Ancho @Alto" role="img" aria-label="@DescripcionAccesible">
+                @* Rejilla y eje Y *@
+                @foreach (var marca in marcasY)
+                {
+                    var y = Y(marca);
+                    <g>
+                        <line x1="@F(MargenIzq)" x2="@F(Ancho - MargenDer)" y1="@F(y)" y2="@F(y)" class="vis-rejilla" />
+                        <text x="@F(MargenIzq - 6)" y="@F(y + 4)" text-anchor="end" class="vis-eje-texto">@marca</text>
+                    </g>
+                }
+
+                @* Columna resaltada *@
+                @if (indice is int h)
+                {
+                    <rect x="@F(MargenIzq + h * banda)" y="@F(MargenSup)" width="@F(banda)" height="@F(AltoUtil)" class="vis-columna-activa" />
+                }
+
+                @* Barras de vistas (esquinas redondeadas solo arriba) *@
+                @for (var i = 0; i < Serie.Count; i++)
+                {
+                    var p = Serie[i];
+                    if (p.Vistas == 0) continue;
+                    <path d="@Barra(i, p.Vistas)" class="vis-barra @(indice == i ? "activa" : "")" />
+                }
+
+                @* Línea de contactos *@
+                <polyline points="@PuntosLinea" class="vis-linea" />
+                @if (Serie.Count <= 31)
+                {
+                    @for (var i = 0; i < Serie.Count; i++)
+                    {
+                        if (Serie[i].Contactos == 0 && indice != i) continue;
+                        <circle cx="@F(Centro(i))" cy="@F(Y(Serie[i].Contactos))" r="4" class="vis-punto" />
+                    }
+                }
+
+                @* Eje X *@
+                @for (var i = 0; i < Serie.Count; i++)
+                {
+                    if (!MostrarEtiquetaX(i)) continue;
+                    <g><text x="@F(Centro(i))" y="@F(Alto - 8)" text-anchor="middle" class="vis-eje-texto">@Serie[i].Fecha.ToString("d MMM", Es)</text></g>
+                }
+
+                @* Zonas de interacción: toda la columna, más grande que la barra *@
+                @for (var i = 0; i < Serie.Count; i++)
+                {
+                    var actual = i;
+                    <rect x="@F(MargenIzq + i * banda)" y="@F(MargenSup)" width="@F(banda)" height="@F(AltoUtil)"
+                          class="vis-zona" tabindex="0"
+                          aria-label="@Etiqueta(Serie[actual])"
+                          @onmouseenter="() => indice = actual"
+                          @onfocus="() => indice = actual"
+                          @onmouseleave="() => indice = null"
+                          @onblur="() => indice = null" />
+                }
+            </svg>
+
+            @if (indice is int t && t < Serie.Count)
+            {
+                var punto = Serie[t];
+                <div class="vis-tooltip" style="left:@F(Math.Clamp(Centro(t) / Ancho * 100, 14, 86))%">
+                    <div class="vis-tooltip-fecha">@punto.Fecha.ToString("dddd d 'de' MMMM", Es)</div>
+                    <div class="vis-tooltip-fila"><i class="vis-clave-linea vis-clave-barra-tt"></i><strong>@punto.Vistas</strong> vistas</div>
+                    <div class="vis-tooltip-fila"><i class="vis-clave-linea"></i><strong>@punto.Contactos</strong> contactos</div>
+                </div>
+            }
+        </div>
+
+        <details class="vis-tabla-datos">
+            <summary>Ver los datos en tabla</summary>
+            <div class="vis-tabla-scroll">
+                <table class="vis-tabla">
+                    <thead><tr><th>Día</th><th class="num">Vistas</th><th class="num">Contactos</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in Serie.AsEnumerable().Reverse())
+                        {
+                            <tr><td>@p.Fecha.ToString("ddd d MMM yyyy", Es)</td><td class="num">@p.Vistas</td><td class="num">@p.Contactos</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<PuntoSerieDto> Serie { get; set; } = new();
+
+    private static readonly CultureInfo Es = CultureInfo.GetCultureInfo("es-CO");
+
+    private const double Ancho = 720, Alto = 230;
+    private const double MargenIzq = 36, MargenDer = 10, MargenSup = 12, MargenInf = 30;
+    private const double AnchoUtil = Ancho - MargenIzq - MargenDer;
+    private const double AltoUtil = Alto - MargenSup - MargenInf;
+
+    private int? indice;
+    private int maximo;
+    private int tope = 1;
+    private double banda = 1;
+    private List<int> marcasY = new();
+
+    protected override void OnParametersSet()
+    {
+        indice = null;
+        maximo = Serie.Count == 0 ? 0 : Serie.Max(p => Math.Max(p.Vistas, p.Contactos));
+        tope = TopeRedondo(maximo);
+        var paso = tope / 4.0;
+        marcasY = Enumerable.Range(0, 5).Select(k => (int)Math.Round(k * paso)).Distinct().ToList();
+        banda = Serie.Count == 0 ? 1 : AnchoUtil / Serie.Count;
+    }
+
+    /// <summary>Tope del eje "bonito" (1, 2, 4, 5, 10, 20…) divisible en 4 marcas enteras.</summary>
+    private static int TopeRedondo(int maximo)
+    {
+        if (maximo <= 4) return 4;
+        var magnitud = Math.Pow(10, Math.Floor(Math.Log10(maximo)));
+        foreach (var factor in new[] { 1.0, 2.0, 2.5, 4.0, 5.0, 10.0 })
+        {
+            var candidato = (int)Math.Ceiling(factor * magnitud);
+            if (candidato >= maximo && candidato % 4 == 0) return candidato;
+        }
+        return (int)Math.Ceiling(maximo / 4.0) * 4;
+    }
+
+    private double Y(int valor) => MargenSup + AltoUtil - valor / (double)tope * AltoUtil;
+    private double Centro(int i) => MargenIzq + (i + 0.5) * banda;
+
+    private string Barra(int i, int valor)
+    {
+        var w = Math.Max(2, banda * 0.62);
+        var x = Centro(i) - w / 2;
+        var y = Y(valor);
+        var h = MargenSup + AltoUtil - y;
+        var r = Math.Min(4, Math.Min(w / 2, h));
+        var abajo = y + h;
+        return $"M{F(x)},{F(abajo)} V{F(y + r)} Q{F(x)},{F(y)} {F(x + r)},{F(y)} H{F(x + w - r)} Q{F(x + w)},{F(y)} {F(x + w)},{F(y + r)} V{F(abajo)} Z";
+    }
+
+    private string PuntosLinea => string.Join(" ", Serie.Select((p, i) => $"{F(Centro(i))},{F(Y(p.Contactos))}"));
+
+    private bool MostrarEtiquetaX(int i)
+    {
+        var n = Serie.Count;
+        var paso = n <= 7 ? 1 : n <= 31 ? 7 : 15;
+        // El último día siempre; se omite la marca anterior si quedaría pegada
+        if (i == n - 1) return true;
+        return (n - 1 - i) % paso == 0 && n - 1 - i >= paso / 2;
+    }
+
+    private string DescripcionAccesible =>
+        $"Vistas y contactos por día del {Serie.First().Fecha.ToString("d MMM", Es)} al {Serie.Last().Fecha.ToString("d MMM", Es)}: " +
+        $"{Serie.Sum(p => p.Vistas)} vistas y {Serie.Sum(p => p.Contactos)} contactos en total.";
+
+    private static string Etiqueta(PuntoSerieDto p) =>
+        $"{p.Fecha.ToString("d 'de' MMMM", Es)}: {p.Vistas} vistas, {p.Contactos} contactos";
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

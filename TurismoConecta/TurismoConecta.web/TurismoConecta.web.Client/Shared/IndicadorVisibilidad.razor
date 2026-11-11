@@ -1,0 +1,49 @@
+@* Un número grande con su comparación contra el periodo anterior (flecha + texto, nunca solo color). *@
+
+<div class="vis-indicador">
+    <div class="vis-indicador-cabecera">
+        @if (!string.IsNullOrEmpty(Icono))
+        {
+            <i class="ph @Icono" aria-hidden="true"></i>
+        }
+        <span>@Titulo</span>
+    </div>
+    <div class="vis-indicador-valor">@Valor</div>
+
+    @if (Metrica is not null)
+    {
+        var (clase, icono, texto) = Comparacion(Metrica);
+        <div class="vis-indicador-cambio @clase">
+            <i class="ph @icono" aria-hidden="true"></i>
+            <span>@texto</span>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Detalle))
+    {
+        <div class="vis-indicador-detalle">@Detalle</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter, EditorRequired] public string Valor { get; set; } = "";
+    [Parameter] public string? Icono { get; set; }
+    /// <summary>Si viene, se muestra el cambio contra el periodo anterior.</summary>
+    [Parameter] public MetricaDto? Metrica { get; set; }
+    [Parameter] public int Dias { get; set; } = 30;
+    [Parameter] public string? Detalle { get; set; }
+
+    private (string Clase, string Icono, string Texto) Comparacion(MetricaDto m)
+    {
+        var anterior = $"los {Dias} días anteriores";
+        if (m.Anterior == 0 && m.Actual == 0) return ("igual", "ph-minus", $"Sin movimiento, igual que {anterior}");
+        if (m.Anterior == 0) return ("sube", "ph-arrow-up-right", $"Nuevo: 0 en {anterior}");
+        if (m.Actual == m.Anterior) return ("igual", "ph-minus", $"Igual que {anterior}");
+
+        var cambio = (m.Actual - m.Anterior) * 100.0 / m.Anterior;
+        if (Math.Abs(cambio) < 0.5) return ("igual", "ph-minus", $"Casi igual que {anterior}");
+        return cambio > 0
+            ? ("sube", "ph-arrow-up-right", $"+{cambio:0} % frente a {anterior}")
+            : ("baja", "ph-arrow-down-right", $"{cambio:0} % frente a {anterior}");
+    }
+}

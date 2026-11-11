@@ -1,0 +1,27 @@
+@* 7 / 30 / 90 días. Los mismos valores que acepta el API (cualquier otro lo trata como 30). *@
+
+<div class="vis-periodo" role="group" aria-label="Periodo">
+    @foreach (var d in Opciones)
+    {
+        var dias = d;
+        <button type="button" class="@(Dias == dias ? "activo" : "")" aria-pressed="@(Dias == dias)"
+                disabled="@Deshabilitado" @onclick="() => Elegir(dias)">
+            @dias días
+        </button>
+    }
+</div>
+
+@code {
+    private static readonly int[] Opciones = { 7, 30, 90 };
+
+    [Parameter] public int Dias { get; set; } = 30;
+    [Parameter] public EventCallback<int> DiasChanged { get; set; }
+    [Parameter] public bool Deshabilitado { get; set; }
+
+    private async Task Elegir(int dias)
+    {
+        if (dias == Dias) return;
+        Dias = dias;
+        await DiasChanged.InvokeAsync(dias);
+    }
+}
