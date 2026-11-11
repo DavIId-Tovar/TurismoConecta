@@ -16,7 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 </HeadContent>
 
-<div class="selva-container">
+<div class="selva-container fm-pagina">
     <!-- PANTALLA DE ESPERA INMERSIVA CON PAISAJE BOYACENSE -->
     @if (cargando)
     {
@@ -46,412 +46,427 @@
     }
     else
     {
-        <!-- BARRA DE NAVEGACIÓN DISCRETA -->
-        <header class="selva-nav">
-            <nav class="nav-migas" aria-label="Ruta de navegación">
-                @* ◆ ICONO: flecha de volver (antes ←) *@
-                <button class="nav-back-link" @onclick="Volver">
-                    <i class="ph ph-arrow-left nav-back-arrow" aria-hidden="true"></i>
-                    @(VieneDeInicio ? "Inicio" : "Catálogo de Pueblos")
-                </button>
+        <!-- ═══════════════ BARRA SUPERIOR ═══════════════ -->
+        <header class="fm-barra">
+            <div class="fm-contenedor fm-barra-interior">
+                <nav class="fm-migas" aria-label="Ruta de navegación">
+                    <button type="button" class="fm-volver" @onclick="Volver">
+                        <i class="ph ph-arrow-left" aria-hidden="true"></i>
+                        @(VieneDeInicio ? "Inicio" : "Catálogo de pueblos")
+                    </button>
+                    <span class="fm-migas-sep" aria-hidden="true">/</span>
+                    <span class="fm-migas-actual">@ficha.Nombre</span>
+                </nav>
 
-                <span class="nav-migas-separador" aria-hidden="true">·</span>
-
-                @if (VieneDeInicio)
-                {
-                    <a href="/municipios" class="nav-migas-enlace">
-                        <i class="ph ph-map-trifold" aria-hidden="true"></i> Catálogo de Pueblos
+                <div class="fm-barra-acciones">
+                    <a class="fm-boton fm-boton--claro" href="@($"/itinerarios/crear?municipios={ficha.IdMunicipio}")">
+                        <i class="ph ph-path" aria-hidden="true"></i>
+                        <span>Planear viaje aquí</span>
                     </a>
-                }
-                else
-                {
-                    <a href="/" class="nav-migas-enlace">
-                        <i class="ph ph-house" aria-hidden="true"></i> Inicio
-                    </a>
-                }
-            </nav>
 
-            <div class="nav-actions">
-                @* ◆ ICONO: guardar en itinerario (antes ✓ y +) *@
-                <button class="btn-itinerario-minimal @(enItinerario ? "guardado" : "")" @onclick="ToggleItinerario">
-                    @if (enItinerario)
-                    {
-                        <i class="ph ph-check" aria-hidden="true"></i>
-                        <span>En tu itinerario</span>
-                    }
-                    else
-                    {
-                        <i class="ph ph-plus" aria-hidden="true"></i>
-                        <span>Guardar en itinerario</span>
-                    }
-                </button>
-
-                <AuthorizeView Roles="@Roles.GeneralOMunicipio">
-                    <Authorized>
-                        @* ◆ ICONO: editar / eliminar *@
-                        <button class="btn-admin-minimal" @onclick='() => Nav.NavigateTo($"/municipios/{Id}/editar")'>
-                            <i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar
-                        </button>
-                        <button class="btn-admin-minimal btn-danger-subtle" @onclick="ConfirmarEliminar">
-                            <i class="ph ph-trash" aria-hidden="true"></i> Eliminar
-                        </button>
-                    </Authorized>
-                </AuthorizeView>
+                    <AuthorizeView Roles="@Roles.GeneralOMunicipio">
+                        <Authorized>
+                            <button type="button" class="fm-boton fm-boton--claro" @onclick='() => Nav.NavigateTo($"/municipios/{Id}/editar")'>
+                                <i class="ph ph-pencil-simple" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="fm-boton fm-boton--peligro" @onclick="ConfirmarEliminar" aria-label="Eliminar municipio">
+                                <i class="ph ph-trash" aria-hidden="true"></i>
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
             </div>
         </header>
 
-        <!-- HERO EDITORIAL CON FOTOGRAFÍA CURADA -->
-        <section class="selva-hero">
-            <div class="hero-imagen-wrapper">
-                
-                <img src="@Api.ImagenMunicipio(ficha.Nombre, ficha.ImagenUrl)"
-                     alt="@ficha.Nombre, Boyacá"
-                     class="hero-imagen"
-                     onerror="this.onerror=null; this.src='@ApiConfig.ImagenPorDefecto';" />
-                <div class="hero-sombra-suave"></div>
-            </div>
+        <!-- ═══════════════ PORTADA ═══════════════ -->
+        <section class="fm-portada">
+            <img src="@Api.ImagenMunicipio(ficha.Nombre, ficha.ImagenUrl)"
+                 alt="@ficha.Nombre, Boyacá"
+                 class="fm-portada-img"
+                 onerror="this.onerror=null; this.src='@ApiConfig.ImagenPorDefecto';" />
+            <div class="fm-portada-velo"></div>
 
-            <div class="hero-contenido-centrado">
-                <span class="hero-categoria-badge">Boyacá Profunda</span>
-                <h1 class="hero-titulo">@ficha.Nombre</h1>
-                <div class="hero-acciones">
-                    <BotonFavorito IdMunicipio="ficha.IdMunicipio" />
+            <div class="fm-contenedor fm-portada-texto">
+                <span class="fm-portada-eyebrow"><i class="ph-fill ph-map-pin" aria-hidden="true"></i> Boyacá · Colombia</span>
+                <div class="fm-portada-titulo-fila">
+                    <h1 class="fm-portada-titulo">@ficha.Nombre</h1>
+                    <div class="fm-portada-favorito"><BotonFavorito IdMunicipio="ficha.IdMunicipio" /></div>
                 </div>
 
-                <!-- METADATOS DISCRETOS: CLIMA Y UBICACIÓN -->
-                <div class="hero-meta-discreta">
-                    @if (!string.IsNullOrWhiteSpace(ficha.Clima))
-                    {
-                        @* ◆ ICONO: clima (antes ⛅) *@
-                        <span class="meta-item-clima">
-                            <span class="icono-clima" aria-hidden="true"><i class="ph ph-cloud-sun"></i></span>
-                            @FormatearClimaDiscreto(ficha.Clima)
-                        </span>
-                        <span class="meta-separador">•</span>
-                    }
-                    <span class="meta-item-pais">Colombia</span>
-                </div>
-
-                @if (ficha.Etiquetas != null && ficha.Etiquetas.Any())
+                @if (ficha.Etiquetas is { Count: > 0 })
                 {
-                    <div class="hero-etiquetas-pills">
+                    <ul class="fm-etiquetas" aria-label="Lo que ofrece">
                         @foreach (var tag in ficha.Etiquetas)
                         {
-                            @* ◆ ICONO: etiqueta (antes ✦) *@
-                            <span class="pill-experiencia">
-                                <span class="pill-icono" aria-hidden="true"><i class="ph-fill ph-sparkle"></i></span>
-                                @tag
-                            </span>
+                            <li>@tag</li>
                         }
-                    </div>
+                    </ul>
                 }
             </div>
         </section>
 
-        <!-- CUERPO PRINCIPAL DEL ARTÍCULO -->
-        <main class="selva-articulo">
-            <!-- AVISOS VIGENTES (alertas municipales): no pinta nada si no hay -->
-            <AvisosMunicipio IdMunicipio="ficha.IdMunicipio" />
-
-            <!-- SECCIÓN 1: INTRODUCCIÓN EDITORIAL -->
-            @if (!string.IsNullOrWhiteSpace(ficha.Descripcion))
-            {
-                <section class="bloque-introduccion">
-                    <p class="parrafo-destacado">@ficha.Descripcion</p>
-                </section>
-
-                <div class="divisor-seccion"></div>
-            }
-
-            <!-- SECCIÓN 2: LUGARES IMPERDIBLES (desde la BD) -->
-            @* ◆ CAMBIO: antes era una lista escrita a mano (ObtenerAtractivosPorDefecto) *@
-            <section class="bloque-contenido">
-                <div class="bloque-cabecera">
-                    <span class="bloque-indice">02</span>
-                    <h2 class="bloque-titulo">Lugares Imperdibles</h2>
-                </div>
-
-                @if (cargandoSitios)
-                {
-                    <div class="negocios-loading">
-                        <div class="spinner-mini-selva"></div>
-                        <p class="nota-ligera">Buscando los lugares imperdibles de @ficha.Nombre...</p>
+        <!-- ═══════════════ DATOS RÁPIDOS (también sirven de atajos) ═══════════════ -->
+        <div class="fm-contenedor">
+            <div class="fm-datos">
+                <div class="fm-dato">
+                    <i class="ph ph-thermometer-simple" aria-hidden="true"></i>
+                    <div>
+                        <strong>@(string.IsNullOrWhiteSpace(ficha.Clima) ? "—" : FormatearClimaDiscreto(ficha.Clima))</strong>
+                        <span>Clima promedio</span>
                     </div>
-                }
-                else if (sitiosMunicipio.Count > 0)
-                {
-                    <div class="sitios-ficha-grid">
-                        @foreach (var sitio in sitiosMunicipio)
+                </div>
+                <a class="fm-dato" href="@Ancla("que-ver")" @onclick="@(() => IrASeccion("que-ver"))" @onclick:preventDefault>
+                    <i class="ph ph-binoculars" aria-hidden="true"></i>
+                    <div>
+                        <strong>@(cargandoSitios ? "…" : sitiosMunicipio.Count.ToString())</strong>
+                        <span>Lugares imperdibles</span>
+                    </div>
+                </a>
+                <a class="fm-dato" href="@Ancla("cuando-ir")" @onclick="@(() => IrASeccion("cuando-ir"))" @onclick:preventDefault>
+                    <i class="ph ph-calendar-star" aria-hidden="true"></i>
+                    <div>
+                        @if (ProximaCelebracion is { } proxima)
                         {
-                            <article class="sitio-ficha-card" @key="sitio.IdSitioTuristico">
-                                <div class="sitio-ficha-imagen">
-                                    <img src="@ImagenSitio(sitio.ImagenUrl)" alt="@sitio.Nombre" loading="lazy" />
-                                    @if (!string.IsNullOrWhiteSpace(sitio.NombreCategoria))
-                                    {
-                                        <span class="sitio-ficha-categoria">
-                                            <i class="@(sitio.IconoCategoria ?? "ph ph-tag")" aria-hidden="true"></i>
-                                            @sitio.NombreCategoria
-                                        </span>
-                                    }
-                                </div>
-                                <div class="sitio-ficha-cuerpo">
-                                    <h3>@sitio.Nombre</h3>
-                                    @if (sitio.Altitud.HasValue)
-                                    {
-                                        <p class="sitio-ficha-dato">
-                                            <i class="ph ph-mountains" aria-hidden="true"></i>
-                                            @sitio.Altitud.Value.ToString("N0") msnm
-                                        </p>
-                                    }
-                                    @if (!string.IsNullOrWhiteSpace(sitio.Descripcion))
-                                    {
-                                        <p class="sitio-ficha-desc">@sitio.Descripcion</p>
-                                    }
-                                </div>
-                            </article>
+                            <strong>@proxima.Proxima.ToString("d MMM", Es)</strong>
+                            <span>Próxima: @proxima.Fecha.NombreFestividad</span>
+                        }
+                        else
+                        {
+                            <strong>@ficha.FechasRelevantes.Count</strong>
+                            <span>Celebraciones</span>
                         }
                     </div>
-                }
-                else
-                {
-                    <div class="estado-vacio-limpio">
-                        <p>Aún no hay lugares turísticos registrados para @ficha.Nombre.</p>
+                </a>
+                <a class="fm-dato" href="@Ancla("donde-comer")" @onclick="@(() => IrASeccion("donde-comer"))" @onclick:preventDefault>
+                    <i class="ph ph-storefront" aria-hidden="true"></i>
+                    <div>
+                        <strong>@(cargandoNegocios ? "…" : (negociosLocales?.Count ?? 0).ToString())</strong>
+                        <span>Comercios verificados</span>
                     </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- ═══════════════ NAVEGACIÓN POR SECCIONES (fija al bajar) ═══════════════ -->
+        <nav class="fm-indice" aria-label="Secciones de la ficha">
+            <div class="fm-contenedor fm-indice-interior">
+                <a href="@Ancla("que-ver")" @onclick="@(() => IrASeccion("que-ver"))" @onclick:preventDefault><i class="ph ph-binoculars" aria-hidden="true"></i> Qué ver</a>
+                <a href="@Ancla("cuando-ir")" @onclick="@(() => IrASeccion("cuando-ir"))" @onclick:preventDefault><i class="ph ph-calendar-star" aria-hidden="true"></i> Cuándo ir</a>
+                <a href="@Ancla("donde-comer")" @onclick="@(() => IrASeccion("donde-comer"))" @onclick:preventDefault><i class="ph ph-fork-knife" aria-hidden="true"></i> Dónde comer y dormir</a>
+                <a href="@Ancla("opiniones")" @onclick="@(() => IrASeccion("opiniones"))" @onclick:preventDefault><i class="ph ph-chats-circle" aria-hidden="true"></i> Opiniones</a>
+                <a href="@Ancla("como-llegar")" @onclick="@(() => IrASeccion("como-llegar"))" @onclick:preventDefault><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Cómo llegar</a>
+                @if (!string.IsNullOrWhiteSpace(ficha.Historia))
+                {
+                    <a href="@Ancla("historia")" @onclick="@(() => IrASeccion("historia"))" @onclick:preventDefault><i class="ph ph-scroll" aria-hidden="true"></i> Historia</a>
                 }
+            </div>
+        </nav>
+
+        <main class="fm-cuerpo">
+
+            <!-- ═══════════════ INTRODUCCIÓN + AVISOS ═══════════════ -->
+            <section class="fm-intro">
+                <div class="fm-contenedor fm-contenedor--angosto">
+                    <AvisosMunicipio IdMunicipio="ficha.IdMunicipio" />
+                    @if (!string.IsNullOrWhiteSpace(ficha.Descripcion))
+                    {
+                        <p class="fm-intro-texto">@ficha.Descripcion</p>
+                    }
+                </div>
             </section>
 
-            <div class="divisor-seccion"></div>
+            <!-- ═══════════════ 1. QUÉ VER (lugares imperdibles) ═══════════════ -->
+            <section class="fm-seccion fm-seccion--ver" id="que-ver">
+                <div class="fm-contenedor">
+                    <header class="fm-cabecera">
+                        <span class="fm-cabecera-icono"><i class="ph ph-binoculars" aria-hidden="true"></i></span>
+                        <div>
+                            <span class="fm-cabecera-eyebrow">Qué ver</span>
+                            <h2>Lugares imperdibles</h2>
+                            <p>Los sitios que no te puedes perder en @ficha.Nombre.</p>
+                        </div>
+                    </header>
 
-            <!-- SECCIÓN 3: FESTIVIDADES Y TRADICIONES -->
-            <section class="bloque-contenido">
-                <div class="bloque-cabecera">
-                    <span class="bloque-indice">03</span>
-                    <h2 class="bloque-titulo">Celebraciones y Tradición</h2>
-                </div>
-
-                @if (ficha.FechasRelevantes != null && ficha.FechasRelevantes.Any())
-                {
-                    <div class="festividades-rotacion-grid">
-                        @foreach (var fest in ficha.FechasRelevantes)
-                        {
-                            <article class="fest-card-rotacion fest-categoria-@ObtenerClaseBadge(fest.TipoFestividad ?? "")">
-                                <div class="fest-card-header">
-                                    <h3 class="fest-titulo">@fest.NombreFestividad</h3>
-                                    @if (!string.IsNullOrWhiteSpace(fest.TipoFestividad))
-                                    {
-                                        <span class="fest-pill-categoria @ObtenerClaseBadge(fest.TipoFestividad)">
-                                            @fest.TipoFestividad
-                                        </span>
-                                    }
-                                </div>
-
-                                <div class="fest-fecha-row">
-                                    @* ◆ ICONO: calendario (antes 📅) *@
-                                    <span class="fest-fecha-icono" aria-hidden="true"><i class="ph ph-calendar-blank"></i></span>
-                                    <span class="fest-fecha-texto">
-                                        @if (fest.FechaInicio != default && fest.FechaFin != default && fest.FechaInicio != fest.FechaFin)
+                    @if (cargandoSitios)
+                    {
+                        <div class="fm-cargando"><span class="fm-spinner"></span> Buscando los lugares imperdibles…</div>
+                    }
+                    else if (sitiosMunicipio.Count > 0)
+                    {
+                        <div class="fm-sitios @ClaseCantidad(sitiosMunicipio.Count)">
+                            @foreach (var sitio in sitiosMunicipio)
+                            {
+                                <article class="fm-sitio @(sitio.Destacado ? "destacado" : "")" @key="sitio.IdSitioTuristico">
+                                    <div class="fm-sitio-foto">
+                                        <img src="@ImagenSitio(sitio.ImagenUrl)" alt="" loading="lazy"
+                                             onerror="this.onerror=null; this.src='@ApiConfig.ImagenPorDefecto';" />
+                                        @if (sitio.Destacado)
                                         {
-                                            @($"{fest.FechaInicio:dd MMM} al {fest.FechaFin:dd MMM yyyy}")
+                                            <span class="fm-sello"><i class="ph-fill ph-star" aria-hidden="true"></i> Destacado</span>
                                         }
-                                        else if (fest.FechaInicio != default)
+                                    </div>
+                                    <div class="fm-sitio-cuerpo">
+                                        <div class="fm-sitio-meta">
+                                            @if (!string.IsNullOrWhiteSpace(sitio.NombreCategoria))
+                                            {
+                                                <span><i class="@(sitio.IconoCategoria ?? "ph ph-tag")" aria-hidden="true"></i> @sitio.NombreCategoria</span>
+                                            }
+                                            @if (sitio.Altitud.HasValue)
+                                            {
+                                                <span><i class="ph ph-mountains" aria-hidden="true"></i> @sitio.Altitud.Value.ToString("N0", Es) m s. n. m.</span>
+                                            }
+                                        </div>
+                                        <h3>@sitio.Nombre</h3>
+                                        @if (!string.IsNullOrWhiteSpace(sitio.Descripcion))
                                         {
-                                            @($"{fest.FechaInicio:dd MMMM yyyy}")
+                                            <p>@sitio.Descripcion</p>
+                                        }
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="fm-vacio"><i class="ph ph-binoculars" aria-hidden="true"></i> Aún no hay lugares turísticos registrados para @ficha.Nombre.</div>
+                    }
+                </div>
+            </section>
+
+            <!-- ═══════════════ 2. CUÁNDO IR (celebraciones en línea de tiempo) ═══════════════ -->
+            <section class="fm-seccion fm-seccion--cuando" id="cuando-ir">
+                <div class="fm-contenedor">
+                    <header class="fm-cabecera">
+                        <span class="fm-cabecera-icono"><i class="ph ph-calendar-star" aria-hidden="true"></i></span>
+                        <div>
+                            <span class="fm-cabecera-eyebrow">Cuándo ir</span>
+                            <h2>Celebraciones y tradición</h2>
+                            <p>Ferias, fiestas y festivales, ordenados por la próxima fecha.</p>
+                        </div>
+                    </header>
+
+                    @if (Celebraciones.Count > 0)
+                    {
+                        <ol class="fm-agenda">
+                            @foreach (var c in Celebraciones)
+                            {
+                                var f = c.Fecha;
+                                var esProxima = c == ProximaCelebracion;   // record: compara por valor
+                                <li class="fm-evento @(esProxima ? "proxima" : "")">
+                                    <div class="fm-evento-fecha" aria-hidden="true">
+                                        @if (c.Proxima == default)
+                                        {
+                                            <i class="ph ph-confetti"></i>
                                         }
                                         else
                                         {
-                                            @("Celebración tradicional")
+                                            <span class="dia">@c.Proxima.Day</span>
+                                            <span class="mes">@c.Proxima.ToString("MMM", Es).TrimEnd('.')</span>
                                         }
-                                    </span>
-                                </div>
-
-                                @if (!string.IsNullOrWhiteSpace(fest.Descripcion))
-                                {
-                                    <p class="fest-descripcion">@fest.Descripcion</p>
-                                }
-                            </article>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="estado-vacio-limpio">
-                        <p>No hay festividades registradas para este municipio actualmente.</p>
-                    </div>
-                }
-            </section>
-
-            <div class="divisor-seccion"></div>
-
-            <!-- SECCIÓN 4: COMER, BEBER, HOSPEDAJE Y EXPERIENCIAS -->
-            <section class="bloque-contenido">
-                <div class="bloque-cabecera-flex">
-                    <div class="bloque-titulo-agrupado">
-                        <span class="bloque-indice">04</span>
-                        <h2 class="bloque-titulo">Establecimientos y Experiencias</h2>
-                    </div>
-                    <span class="contador-establecimientos">
-                        @(NegociosFiltrados.Count) lugar@(NegociosFiltrados.Count != 1 ? "es" : "")
-                    </span>
-                </div>
-
-                @* ◆ CAMBIO: categorías desde la BD (antes ids 1-4 escritos a mano y equivocados) *@
-                <div class="pildoras-categorias-row">
-                    <button type="button"
-                            class="btn-pildora-silueta @(categoriaSeleccionada == 0 ? "activa" : "")"
-                            @onclick="() => SeleccionarCategoria(0)">
-                        <i class="ph ph-compass silueta-icono" aria-hidden="true"></i>
-                        <span>Todos</span>
-                    </button>
-
-                    @foreach (var cat in categoriasNegocio)
+                                    </div>
+                                    <div class="fm-evento-cuerpo">
+                                        <div class="fm-evento-titulo">
+                                            <h3>@f.NombreFestividad</h3>
+                                            @if (!string.IsNullOrWhiteSpace(f.TipoFestividad))
+                                            {
+                                                <span class="fm-tipo fm-tipo--@ObtenerClaseBadge(f.TipoFestividad)">@f.TipoFestividad</span>
+                                            }
+                                        </div>
+                                        <p class="fm-evento-cuando">
+                                            <i class="ph ph-calendar-blank" aria-hidden="true"></i>
+                                            @TextoFechas(c)
+                                            @if (esProxima)
+                                            {
+                                                <span class="fm-falta">@TextoFalta(c.Proxima)</span>
+                                            }
+                                        </p>
+                                        @if (!string.IsNullOrWhiteSpace(f.Descripcion))
+                                        {
+                                            <p class="fm-evento-desc">@f.Descripcion</p>
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        </ol>
+                    }
+                    else
                     {
-                        var idCat = cat.IdCategoria;
-                        <button type="button"
-                                class="btn-pildora-silueta @(categoriaSeleccionada == idCat ? "activa" : "")"
-                                @onclick="() => SeleccionarCategoria(idCat)">
-                            <i class="@(string.IsNullOrWhiteSpace(cat.Icono) ? "ph ph-storefront" : cat.Icono) silueta-icono" aria-hidden="true"></i>
-                            <span>@cat.Nombre</span>
-                        </button>
+                        <div class="fm-vacio"><i class="ph ph-calendar-blank" aria-hidden="true"></i> No hay celebraciones registradas para este municipio por ahora.</div>
                     }
                 </div>
+            </section>
 
-                @if (cargandoNegocios)
-                {
-                    <div class="negocios-loading">
-                        <div class="spinner-mini-selva"></div>
-                        <p class="nota-ligera">Consultando establecimientos recomendados en @ficha.Nombre...</p>
-                    </div>
-                }
-                else if (NegociosFiltrados.Any())
-                {
-                    <div class="negocios-grid-editorial">
-                        @foreach (var negocio in NegociosFiltrados)
+            <!-- ═══════════════ 3. DÓNDE COMER Y DORMIR ═══════════════ -->
+            <section class="fm-seccion fm-seccion--comer" id="donde-comer">
+                <div class="fm-contenedor">
+                    <header class="fm-cabecera fm-cabecera--con-extra">
+                        <span class="fm-cabecera-icono"><i class="ph ph-fork-knife" aria-hidden="true"></i></span>
+                        <div>
+                            <span class="fm-cabecera-eyebrow">Dónde comer y dormir</span>
+                            <h2>Establecimientos y experiencias</h2>
+                            <p>Comercios locales aprobados por la alcaldía.</p>
+                        </div>
+                        <span class="fm-contador">@NegociosFiltrados.Count lugar@(NegociosFiltrados.Count != 1 ? "es" : "")</span>
+                    </header>
+
+                    <div class="fm-filtros" role="group" aria-label="Filtrar por categoría">
+                        <button type="button" class="@(categoriaSeleccionada == 0 ? "activo" : "")" aria-pressed="@(categoriaSeleccionada == 0)"
+                                @onclick="() => SeleccionarCategoria(0)">
+                            <i class="ph ph-squares-four" aria-hidden="true"></i> Todos
+                        </button>
+                        @foreach (var cat in categoriasNegocio)
                         {
-                            var n = negocio;
-                            <article class="negocio-card-editorial" @onclick="() => AbrirModalNegocio(n)">
-                                <div class="negocio-portada-wrap">
-                                    <img src="@ObtenerFotoNegocio(n)"
-                                         alt="@n.Nombre"
-                                         class="negocio-portada-img"
-                                         onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=800&auto=format&fit=crop';" />
-                                    <span class="negocio-badge-cat">@n.NombreCategoria</span>
-                                </div>
-                                <div class="negocio-cuerpo-card">
-                                    <div class="negocio-header-row">
-                                        <h4 class="negocio-nombre">@n.Nombre</h4>
-                                        @if (n.PromedioCalificacion.HasValue && n.PromedioCalificacion.Value > 0)
-                                        {
-                                            @* ◆ ICONO: estrella (antes ★) *@
-                                            <span class="negocio-estrellas">
-                                                <i class="ph-fill ph-star" aria-hidden="true"></i> @n.PromedioCalificacion.Value.ToString("0.0")
-                                            </span>
-                                        }
-                                    </div>
-                                    @* ◆ ICONO: ubicación (antes 📍) *@
-                                    <p class="negocio-direccion">
-                                        <i class="ph-fill ph-map-pin" aria-hidden="true"></i>
-                                        @(string.IsNullOrWhiteSpace(n.Direccion) ? "Centro histórico, " + ficha.Nombre : n.Direccion)
-                                    </p>
-                                    @if (!string.IsNullOrWhiteSpace(n.Descripcion))
-                                    {
-                                        <p class="negocio-extracto">@TruncarTexto(n.Descripcion, 110)</p>
-                                    }
-                                    <div class="negocio-footer-card">
-                                        @* ◆ ICONO: flecha (antes ↗) *@
-                                        <span class="enlace-ver-mas">
-                                            Ver detalles y fotos <i class="ph ph-arrow-up-right" aria-hidden="true"></i>
-                                        </span>
-                                        @if (EsHospedaje(n))
-                                        {
-                                            <span class="badge-booking-pill">Booking</span>
-                                        }
-                                    </div>
-                                </div>
-                            </article>
+                            var idCat = cat.IdCategoria;
+                            <button type="button" class="@(categoriaSeleccionada == idCat ? "activo" : "")" aria-pressed="@(categoriaSeleccionada == idCat)"
+                                    @onclick="() => SeleccionarCategoria(idCat)">
+                                <i class="@(string.IsNullOrWhiteSpace(cat.Icono) ? "ph ph-storefront" : cat.Icono)" aria-hidden="true"></i> @cat.Nombre
+                            </button>
                         }
                     </div>
-                }
-                else
-                {
-                    <div class="estado-vacio-limpio">
-                        <p>No hay comercios registrados en esta categoría para @ficha.Nombre actualmente.</p>
+
+                    @if (cargandoNegocios)
+                    {
+                        <div class="fm-cargando"><span class="fm-spinner"></span> Consultando establecimientos en @ficha.Nombre…</div>
+                    }
+                    else if (NegociosFiltrados.Any())
+                    {
+                        <div class="fm-negocios @ClaseCantidad(NegociosFiltrados.Count)">
+                            @foreach (var negocio in NegociosFiltrados)
+                            {
+                                var n = negocio;
+                                <button type="button" class="fm-negocio" @onclick="() => AbrirModalNegocio(n)">
+                                    <div class="fm-negocio-foto">
+                                        <img src="@ObtenerFotoNegocio(n)" alt="" loading="lazy"
+                                             onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=800&auto=format&fit=crop';" />
+                                    </div>
+                                    <div class="fm-negocio-cuerpo">
+                                        <div class="fm-negocio-meta">
+                                            <span class="fm-negocio-cat">@n.NombreCategoria</span>
+                                            @if (n.PromedioCalificacion is > 0)
+                                            {
+                                                <span class="fm-negocio-estrellas"><i class="ph-fill ph-star" aria-hidden="true"></i> @n.PromedioCalificacion.Value.ToString("0.0", Es)</span>
+                                            }
+                                        </div>
+                                        <h3>@n.Nombre</h3>
+                                        <p class="fm-negocio-dir">
+                                            <i class="ph ph-map-pin" aria-hidden="true"></i>
+                                            @(string.IsNullOrWhiteSpace(n.Direccion) ? "Centro de " + ficha.Nombre : n.Direccion)
+                                        </p>
+                                        @if (!string.IsNullOrWhiteSpace(n.Descripcion))
+                                        {
+                                            <p class="fm-negocio-desc">@TruncarTexto(n.Descripcion, 110)</p>
+                                        }
+                                        <span class="fm-negocio-ver">Ver detalles, fotos y contacto <i class="ph ph-arrow-right" aria-hidden="true"></i></span>
+                                    </div>
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="fm-vacio"><i class="ph ph-storefront" aria-hidden="true"></i> No hay comercios registrados en esta categoría para @ficha.Nombre por ahora.</div>
+                    }
+                </div>
+            </section>
+
+            <!-- ═══════════════ 4. OPINIONES ═══════════════ -->
+            <section class="fm-seccion fm-seccion--opiniones" id="opiniones">
+                <div class="fm-contenedor fm-contenedor--angosto">
+                    <header class="fm-cabecera">
+                        <span class="fm-cabecera-icono"><i class="ph ph-chats-circle" aria-hidden="true"></i></span>
+                        <div>
+                            <span class="fm-cabecera-eyebrow">Qué dicen los viajeros</span>
+                            <h2>Opiniones</h2>
+                            <p>Experiencias reales de quienes ya visitaron @ficha.Nombre.</p>
+                        </div>
+                    </header>
+                    <div class="fm-tarjeta">
+                        <ListaResenas IdMunicipio="ficha.IdMunicipio" NombreLugar="@ficha.Nombre" />
                     </div>
-                }
-            </section>
-
-            <div class="divisor-seccion"></div>
-
-            <!-- SECCIÓN 5: OPINIONES DE VIAJEROS (HU-28) -->
-            <section class="bloque-contenido">
-                <div class="bloque-cabecera">
-                    <span class="bloque-indice">05</span>
-                    <h2 class="bloque-titulo">Opiniones de Viajeros</h2>
                 </div>
-
-                <ListaResenas IdMunicipio="ficha.IdMunicipio" NombreLugar="@ficha.Nombre" />
             </section>
 
-            <div class="divisor-seccion"></div>
+            <!-- ═══════════════ 5. CÓMO LLEGAR ═══════════════ -->
+            <section class="fm-seccion fm-seccion--llegar" id="como-llegar">
+                <div class="fm-contenedor">
+                    <header class="fm-cabecera">
+                        <span class="fm-cabecera-icono"><i class="ph ph-navigation-arrow" aria-hidden="true"></i></span>
+                        <div>
+                            <span class="fm-cabecera-eyebrow">Cómo llegar</span>
+                            <h2>Ubicación</h2>
+                            <p>Abre la ruta en tu aplicación favorita o arma un itinerario.</p>
+                        </div>
+                    </header>
 
-            <!-- SECCIÓN 6: UBICACIÓN GEOGRÁFICA -->
-            <section class="bloque-contenido">
-                <div class="bloque-cabecera-flex">
-                    <div class="bloque-titulo-agrupado">
-                        <span class="bloque-indice">06</span>
-                        <h2 class="bloque-titulo">Ubicación Geográfica</h2>
+                    <div class="fm-llegar">
+                        <div class="fm-mapa">
+                            <iframe src="@ObtenerUrlIframeMaps(ficha.Nombre, ficha.Latitud, ficha.Longitud)"
+                                    title="Mapa de @ficha.Nombre"
+                                    loading="lazy"
+                                    allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
+                        </div>
+                        <aside class="fm-llegar-panel">
+                            <h3>@ficha.Nombre, Boyacá</h3>
+                            @if (TieneCoordenadas)
+                            {
+                                <p class="fm-coordenadas">
+                                    <i class="ph ph-crosshair" aria-hidden="true"></i>
+                                    @ficha.Latitud!.Value.ToString("0.0000", Inv), @ficha.Longitud!.Value.ToString("0.0000", Inv)
+                                </p>
+                            }
+                            <a class="fm-boton fm-boton--lleno" href="@ObtenerUrlGoogleMaps(ficha.Nombre, ficha.Latitud, ficha.Longitud)" target="_blank" rel="noopener noreferrer">
+                                <i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir en Google Maps
+                            </a>
+                            @if (TieneCoordenadas)
+                            {
+                                <a class="fm-boton fm-boton--claro" href="@UrlWaze" target="_blank" rel="noopener noreferrer">
+                                    <i class="ph ph-car" aria-hidden="true"></i> Abrir en Waze
+                                </a>
+                            }
+                            <a class="fm-boton fm-boton--claro" href="@($"/itinerarios/crear?municipios={ficha.IdMunicipio}")">
+                                <i class="ph ph-path" aria-hidden="true"></i> Armar un itinerario
+                            </a>
+                        </aside>
                     </div>
-                    @* ◆ ICONO: abrir fuera (antes ↗) *@
-                    <a href="@ObtenerUrlGoogleMaps(ficha.Nombre, ficha.Latitud, ficha.Longitud)"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       class="enlace-mapa-discreto">
-                        Abrir en Google Maps <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
-                    </a>
-                </div>
-
-                <div class="mapa-frame-container">
-                    <iframe class="mapa-frame"
-                            src="@ObtenerUrlIframeMaps(ficha.Nombre, ficha.Latitud, ficha.Longitud)"
-                            loading="lazy"
-                            allowfullscreen
-                            referrerpolicy="no-referrer-when-downgrade">
-                    </iframe>
                 </div>
             </section>
 
+            <!-- ═══════════════ 6. HISTORIA ═══════════════ -->
             @if (!string.IsNullOrWhiteSpace(ficha.Historia))
             {
-                <div class="divisor-seccion"></div>
-
-                <!-- SECCIÓN 7: HISTORIA Y MEMORIA -->
-                <section class="bloque-contenido">
-                    <div class="bloque-cabecera">
-                        <span class="bloque-indice">07</span>
-                        <h2 class="bloque-titulo">Historia y Memoria</h2>
+                <section class="fm-seccion fm-seccion--historia" id="historia">
+                    <div class="fm-contenedor fm-historia">
+                        <header class="fm-cabecera">
+                            <span class="fm-cabecera-icono"><i class="ph ph-scroll" aria-hidden="true"></i></span>
+                            <div>
+                                <span class="fm-cabecera-eyebrow">Su historia</span>
+                                <h2>Historia y memoria</h2>
+                            </div>
+                        </header>
+                        <p class="fm-historia-texto">@ficha.Historia</p>
                     </div>
-              
-                                <p class="parrafo-editorial">@ficha.Historia</p>
                 </section>
             }
 
-            <div class="divisor-seccion"></div>
-
-            <!-- SECCIÓN FINAL: SI TE GUSTÓ ESTE MUNICIPIO (Recomendaciones) -->
-            <section class="bloque-contenido">
-                <div class="bloque-cabecera">
-                    <span class="bloque-indice"><i class="ph ph-compass" aria-hidden="true"></i></span>
-                    <h2 class="bloque-titulo">Si te gustó @ficha.Nombre…</h2>
+            <!-- ═══════════════ SI TE GUSTÓ… ═══════════════ -->
+            <section class="fm-seccion fm-seccion--similares">
+                <div class="fm-contenedor">
+                    <header class="fm-cabecera">
+                        <span class="fm-cabecera-icono"><i class="ph ph-compass" aria-hidden="true"></i></span>
+                        <div>
+                            <span class="fm-cabecera-eyebrow">Sigue explorando</span>
+                            <h2>Si te gustó @ficha.Nombre…</h2>
+                        </div>
+                    </header>
+                    <MunicipiosSimilares IdMunicipio="ficha.IdMunicipio" Desde="@Desde" />
                 </div>
-
-                <MunicipiosSimilares IdMunicipio="ficha.IdMunicipio" Desde="@Desde" />
             </section>
         </main>
 
-        
-
-        <!-- FOOTER DISCRETO -->
-        <footer class="selva-footer">
-            <p>TurismoConecta Boyacá — Guía de Destinos</p>
+        <footer class="fm-pie">
+            <p>TurismoConecta · Guía de destinos de Boyacá</p>
         </footer>
 
         <!-- MODAL DE CONFIRMACIÓN DE ELIMINACIÓN DE MUNICIPIO -->
@@ -675,7 +690,9 @@
     private bool cargando = true;
     private bool cargandoNegocios = true;
     private bool mostrarConfirmacion = false;
-    private bool enItinerario = false;
+
+    private static readonly System.Globalization.CultureInfo Es = System.Globalization.CultureInfo.GetCultureInfo("es-CO");
+    private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
 
     // ◆ NUEVO: id ya cargado (para no recargar si no cambió)
     private int idCargado;
@@ -950,6 +967,91 @@
     }
 
     // ════════════════════════════════════════════════
+    // 7b. CELEBRACIONES: próxima fecha de cada una
+    // ════════════════════════════════════════════════
+
+    /// <summary>Una celebración con su próxima fecha (las recurrentes se pasan al año en curso o al siguiente).</summary>
+    private sealed record Celebracion(FechaRelevanteDto Fecha, DateOnly Proxima, DateOnly ProximaFin);
+
+    private static DateOnly Hoy => DateOnly.FromDateTime(DateTime.Today);
+
+    private List<Celebracion> Celebraciones =>
+        (ficha?.FechasRelevantes ?? new())
+            .Select(CalcularProxima)
+            // Primero las que vienen (o están en curso), luego las ya pasadas y al final las que no tienen fecha
+            .OrderBy(c => c.Proxima == default ? 2 : c.ProximaFin < Hoy ? 1 : 0)
+            .ThenBy(c => c.Proxima)
+            .ToList();
+
+    private Celebracion? ProximaCelebracion =>
+        Celebraciones.FirstOrDefault(c => c.Proxima != default && c.ProximaFin >= Hoy);
+
+    private static Celebracion CalcularProxima(FechaRelevanteDto f)
+    {
+        if (f.FechaInicio == default) return new Celebracion(f, default, default);
+
+        var duracion = f.FechaFin != default && f.FechaFin > f.FechaInicio ? f.FechaFin.DayNumber - f.FechaInicio.DayNumber : 0;
+        if (!f.EsRecurrente) return new Celebracion(f, f.FechaInicio, f.FechaInicio.AddDays(duracion));
+
+        var inicio = EnAnio(f.FechaInicio, Hoy.Year);
+        if (inicio.AddDays(duracion) < Hoy) inicio = EnAnio(f.FechaInicio, Hoy.Year + 1);
+        return new Celebracion(f, inicio, inicio.AddDays(duracion));
+    }
+
+    // 29 de febrero en un año no bisiesto → 28 de febrero
+    private static DateOnly EnAnio(DateOnly fecha, int anio) =>
+        new(anio, fecha.Month, Math.Min(fecha.Day, DateTime.DaysInMonth(anio, fecha.Month)));
+
+    private string TextoFechas(Celebracion c)
+    {
+        if (c.Proxima == default) return "Celebración tradicional (fecha por confirmar)";
+
+        var prefijo = c.ProximaFin < Hoy ? "Fue " : "";
+        if (c.ProximaFin == c.Proxima)
+            return prefijo + c.Proxima.ToString("dddd d 'de' MMMM 'de' yyyy", Es);
+        if (c.Proxima.Month == c.ProximaFin.Month)
+            return $"{prefijo}Del {c.Proxima.Day} al {c.ProximaFin.ToString("d 'de' MMMM 'de' yyyy", Es)}";
+        return $"{prefijo}Del {c.Proxima.ToString("d 'de' MMMM", Es)} al {c.ProximaFin.ToString("d 'de' MMMM 'de' yyyy", Es)}";
+    }
+
+    private string TextoFalta(DateOnly proxima)
+    {
+        var dias = proxima.DayNumber - Hoy.DayNumber;
+        return dias switch
+        {
+            < 0 => "En curso",
+            0 => "¡Es hoy!",
+            1 => "Mañana",
+            _ => $"Faltan {dias} días"
+        };
+    }
+
+    // ════════════════════════════════════════════════
+    // 7c. UBICACIÓN Y ANCLAS
+    // ════════════════════════════════════════════════
+    /// <summary>La cuadrícula se adapta: 1 = tarjeta ancha horizontal, 2 = dos columnas, 3 o más = cuadrícula.</summary>
+    private static string ClaseCantidad(int cantidad) => cantidad switch { 1 => "uno", 2 => "dos", _ => "varios" };
+
+    private bool TieneCoordenadas =>
+        ficha?.Latitud is decimal lat && ficha.Longitud is decimal lon && lat != 0 && lon != 0;
+
+    private string UrlWaze =>
+        $"https://waze.com/ul?ll={ficha!.Latitud!.Value.ToString(Inv)},{ficha.Longitud!.Value.ToString(Inv)}&navigate=yes";
+
+    /// <summary>
+    /// Enlace a una sección de esta misma página. Con &lt;base href="/"&gt; un "#id" suelto
+    /// llevaría al inicio, así que se arma con la dirección actual.
+    /// </summary>
+    private ValueTask IrASeccion(string id) => JS.InvokeVoidAsync("navegacion.irASeccion", id);
+
+    private string Ancla(string id)
+    {
+        var uri = Nav.Uri;
+        var hash = uri.IndexOf('#');
+        return (hash >= 0 ? uri[..hash] : uri) + "#" + id;
+    }
+
+    // ════════════════════════════════════════════════
     // 8. PANTALLA DE ESPERA
     // ════════════════════════════════════════════════
     private record PaisajeBoyaca(string Lugar, string Frase, string Url);
@@ -968,8 +1070,6 @@
     // 9. ACCIONES DE LA BARRA
     // ════════════════════════════════════════════════
     private void Volver() => Nav.NavigateTo(VieneDeInicio ? "/#donde-ir" : "/municipios");
-
-    private void ToggleItinerario() => enItinerario = !enItinerario;
 
     private void ConfirmarEliminar() => mostrarConfirmacion = true;
 
