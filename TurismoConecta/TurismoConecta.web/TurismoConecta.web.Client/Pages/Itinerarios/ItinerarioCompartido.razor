@@ -146,6 +146,13 @@
                 </div>
             }
 
+            @* EXPORTAR (Módulo 5): quien recibe el enlace también puede llevarse el plan *@
+            <div class="compartido-seccion">
+                <span class="compartido-seccion-label">Llévate este itinerario</span>
+                <ExportarItinerario CodigoCompartir="Codigo"
+                                    TieneFechas="ExportarItinerario.CalcularTieneFechas(itinerario)" />
+            </div>
+
             @* RUTA DESGLOSADA DÍA A DÍA CON COMERCIOS *@
             <div class="compartido-seccion">
                 <span class="compartido-seccion-label">Ruta Paso a Paso y Recomendaciones Locales</span>

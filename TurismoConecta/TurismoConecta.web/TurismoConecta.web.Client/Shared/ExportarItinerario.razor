@@ -1,0 +1,74 @@
+@inject ItinerarioApiService Itinerarios
+@inject IJSRuntime JS
+
+@* Exportar itinerario (Módulo 5): PDF y calendario .ics. Lo usan el detalle y la vista compartida. *@
+
+<div class="exportar-itinerario">
+    <div class="exportar-botones">
+        <button type="button" class="btn-exportar" @onclick='() => Descargar("pdf")' disabled="@(descargando is not null)">
+            <i class="ph ph-file-pdf" aria-hidden="true"></i>
+            <span>@(descargando == "pdf" ? "Generando PDF..." : "Descargar PDF")</span>
+        </button>
+
+        <button type="button" class="btn-exportar" @onclick='() => Descargar("ics")'
+                disabled="@(descargando is not null || !TieneFechas)"
+                title="@(TieneFechas ? "Para Google Calendar, Outlook o el calendario del celular" : "Agrega las fechas del viaje para usar esta opción")">
+            <i class="ph ph-calendar-plus" aria-hidden="true"></i>
+            <span>@(descargando == "ics" ? "Preparando..." : "Agregar a mi calendario")</span>
+        </button>
+    </div>
+
+    <p class="exportar-ayuda">
+        @if (!TieneFechas)
+        {
+            <text>Para pasarlo a tu calendario, el itinerario necesita fechas.</text>
+        }
+        else
+        {
+            <text>El PDF sirve sin internet. El calendario (.ics) se abre con Google Calendar, Outlook o el calendario del celular: un evento por cada día del viaje.</text>
+        }
+    </p>
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <p class="exportar-error" role="alert"><i class="ph ph-warning-circle" aria-hidden="true"></i> @error</p>
+    }
+</div>
+
+@code {
+    /// <summary>Itinerario propio (con sesión). Se usa si no hay CodigoCompartir.</summary>
+    [Parameter] public int? IdItinerario { get; set; }
+
+    /// <summary>Itinerario público (vista compartida, sin sesión).</summary>
+    [Parameter] public Guid? CodigoCompartir { get; set; }
+
+    /// <summary>Sin fechas no se puede armar el calendario; el PDF sí.</summary>
+    [Parameter] public bool TieneFechas { get; set; }
+
+    private string? descargando;
+    private string? error;
+
+    private async Task Descargar(string formato)
+    {
+        error = null;
+        descargando = formato;
+
+        var (archivo, mensaje) = await Itinerarios.ExportarAsync(IdItinerario, CodigoCompartir, formato);
+        if (archivo is null)
+        {
+            error = mensaje;
+        }
+        else
+        {
+            using var flujo = new DotNetStreamReference(new MemoryStream(archivo.Contenido));
+            await JS.InvokeVoidAsync("archivos.descargar", archivo.Nombre, archivo.Tipo, flujo);
+        }
+
+        descargando = null;
+    }
+
+    /// <summary>Mismo criterio que la API: fecha de inicio del viaje o una fecha por cada parada.</summary>
+    public static bool CalcularTieneFechas(ItinerarioDetalleDto itinerario) =>
+        itinerario.Paradas.Count > 0
+        && (itinerario.FechaInicio is not null || itinerario.Paradas.All(p => p.FechaVisita is not null));
+}

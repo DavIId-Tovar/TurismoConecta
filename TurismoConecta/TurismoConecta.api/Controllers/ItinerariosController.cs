@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TurismoConecta.api.DTOs.Itinerarios;
 using TurismoConecta.api.Services.Interfaces;
+using TurismoConecta.api.Services.Exportacion;
 
 
 namespace TurismoConecta.api.Controllers
@@ -13,8 +14,13 @@ namespace TurismoConecta.api.Controllers
     public class ItinerariosController : ControllerBase
     {
         private readonly IItinerarioService _service;
+        private readonly IExportarItinerarioService _exportar;
 
-        public ItinerariosController(IItinerarioService service) => _service = service;
+        public ItinerariosController(IItinerarioService service, IExportarItinerarioService exportar)
+        {
+            _service = service;
+            _exportar = exportar;
+        }
 
         [HttpGet]
         [Authorize]
@@ -97,6 +103,50 @@ namespace TurismoConecta.api.Controllers
             return Ok(new { compartido, codigoCompartir });
         }
 
+
+        // ═════════════ EXPORTAR (Módulo 5) ═════════════
+
+        // GET api/itinerarios/7/exportar/pdf  |  .../exportar/ics
+        [HttpGet("{id:int}/exportar/{formato}")]
+        [Authorize]
+        public async Task<IActionResult> Exportar(int id, string formato, CancellationToken ct)
+        {
+            var itinerario = await _exportar.ObtenerAsync(id, ObtenerIdUsuarioActual(), ct);
+            return itinerario is null
+                ? NotFound(new { mensaje = "El itinerario no existe." })
+                : ArchivoExportado(itinerario, formato);
+        }
+
+        // GET api/itinerarios/compartido/{codigo}/exportar/pdf  → para quien recibe el enlace público
+        [HttpGet("compartido/{codigo:guid}/exportar/{formato}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ExportarCompartido(Guid codigo, string formato, CancellationToken ct)
+        {
+            var itinerario = await _exportar.ObtenerCompartidoAsync(codigo, ct);
+            return itinerario is null
+                ? NotFound(new { mensaje = "El enlace no es válido o el itinerario ya no es público." })
+                : ArchivoExportado(itinerario, formato);
+        }
+
+        private IActionResult ArchivoExportado(ItinerarioExportable itinerario, string formato)
+        {
+            switch (formato.ToLowerInvariant())
+            {
+                case "pdf":
+                    return File(_exportar.GenerarPdf(itinerario), "application/pdf",
+                        _exportar.NombreArchivo(itinerario, "pdf"));
+
+                case "ics":
+                    var ics = _exportar.GenerarIcs(itinerario);
+                    if (ics is null)
+                        return BadRequest(new { mensaje = "Agrega las fechas del viaje para pasarlo a tu calendario." });
+                    return File(System.Text.Encoding.UTF8.GetBytes(ics), "text/calendar; charset=utf-8",
+                        _exportar.NombreArchivo(itinerario, "ics"));
+
+                default:
+                    return BadRequest(new { mensaje = "Formato no soportado. Usa pdf o ics." });
+            }
+        }
 
         private int ObtenerIdUsuarioActual()
         {

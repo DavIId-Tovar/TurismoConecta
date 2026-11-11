@@ -337,9 +337,19 @@
                     }
 
                     @* COMPARTIR *@
+                    @* EXPORTAR (Módulo 5): PDF y calendario *@
                     <div class="seccion-card">
                         <div class="seccion-titulo-wrap">
                             <span class="seccion-num">@(!string.IsNullOrWhiteSpace(itinerario.Observaciones) ? "03" : "02")</span>
+                            <h2 class="seccion-titulo">Llévalo contigo</h2>
+                        </div>
+                        <ExportarItinerario IdItinerario="itinerario.IdItinerario"
+                                            TieneFechas="ExportarItinerario.CalcularTieneFechas(itinerario)" />
+                    </div>
+
+                    <div class="seccion-card">
+                        <div class="seccion-titulo-wrap">
+                            <span class="seccion-num">@(!string.IsNullOrWhiteSpace(itinerario.Observaciones) ? "04" : "03")</span>
                             <h2 class="seccion-titulo">Visibilidad del Itinerario</h2>
                         </div>
 
