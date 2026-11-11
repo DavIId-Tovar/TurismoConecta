@@ -1,4 +1,4 @@
-﻿namespace TurismoConecta.api.DTOs.Municipios
+namespace TurismoConecta.api.DTOs.Municipios
 {
     public class MunicipioFichaDto : MunicipioListadoDto
     {
@@ -6,7 +6,7 @@
         public string? Clima { get; set; }
         public string? Historia { get; set; }
         public List<FechaRelevanteDto> FechasRelevantes { get; set; } = new(); // antes era string?
-        public decimal? Latitud { get; set; }
-        public decimal? Longitud { get; set; }
+        public new decimal? Latitud { get; set; }
+        public new decimal? Longitud { get; set; }
     }
 }
