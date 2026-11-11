@@ -1,0 +1,138 @@
+@* Comparativo de todos los municipios para el administrador general (DashboardAdmin).
+   "Ver reporte" abre debajo el reporte completo de ese municipio. *@
+@using System.Globalization
+@implements IDisposable
+@inject VisibilidadApiService Visibilidad
+
+<div class="vis-panel">
+    <div class="vis-barra-filtros">
+        <SelectorPeriodo Dias="dias" DiasChanged="CambiarPeriodo" Deshabilitado="cargando" />
+    </div>
+
+    @if (cargando && datos is null)
+    {
+        <div class="vis-cargando"><span class="vis-spinner"></span> Cargando estadísticas…</div>
+    }
+    else if (error is not null)
+    {
+        <div class="vis-error"><i class="ph ph-warning-circle" aria-hidden="true"></i> @error
+            <button type="button" class="vis-boton-texto" @onclick="CargarAsync">Reintentar</button>
+        </div>
+    }
+    else if (datos is not null)
+    {
+        var g = datos;
+        var p = g.Periodo;
+
+        <p class="vis-periodo-texto">
+            Todo Boyacá · del @p.Desde.ToString("d 'de' MMMM", Es) al @p.Hasta.ToString("d 'de' MMMM 'de' yyyy", Es)
+            @if (cargando) { <span class="vis-spinner" aria-label="Actualizando"></span> }
+        </p>
+
+        <div class="vis-indicadores cuatro">
+            <IndicadorVisibilidad Titulo="Vistas" Icono="ph-eye" Valor="@N(g.Vistas.Actual)" Metrica="g.Vistas" Dias="p.Dias"
+                                  Detalle="Fichas de municipios y establecimientos" />
+            <IndicadorVisibilidad Titulo="Contactos a comercios" Icono="ph-hand-tap" Valor="@N(g.Contactos.Actual)" Metrica="g.Contactos" Dias="p.Dias" />
+            <IndicadorVisibilidad Titulo="Itinerarios nuevos" Icono="ph-path" Valor="@N(g.ItinerariosNuevos.Actual)" Metrica="g.ItinerariosNuevos" Dias="p.Dias" />
+            <IndicadorVisibilidad Titulo="Reseñas nuevas" Icono="ph-star" Valor="@N(g.ResenasNuevas.Actual)" Metrica="g.ResenasNuevas" Dias="p.Dias" />
+        </div>
+
+        <section class="vis-bloque">
+            <h3 class="vis-subtitulo">Vistas y contactos por día</h3>
+            <GraficaVisibilidad Serie="g.Serie" />
+        </section>
+
+        <section class="vis-bloque">
+            <h3 class="vis-subtitulo">Municipios, de más a menos vistos</h3>
+            <div class="vis-tabla-scroll alta">
+                <table class="vis-tabla">
+                    <thead>
+                        <tr>
+                            <th>Municipio</th>
+                            <th class="num">Vistas ficha</th>
+                            <th class="num">Vistas comercios</th>
+                            <th class="num">Contactos</th>
+                            <th class="num">Itinerarios</th>
+                            <th class="num">Aprobados</th>
+                            <th class="num">Pendientes</th>
+                            <th class="num">Calificación</th>
+                            <th><span class="vis-solo-lector">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in g.Municipios)
+                        {
+                            var id = m.IdMunicipio;
+                            <tr class="@(seleccionado == id ? "seleccionada" : "")">
+                                <td>@m.Nombre</td>
+                                <td class="num">@N(m.VistasFicha)</td>
+                                <td class="num">@N(m.VistasNegocios)</td>
+                                <td class="num">@N(m.Contactos)</td>
+                                <td class="num">@N(m.ItinerariosNuevos)</td>
+                                <td class="num">@N(m.NegociosAprobados)</td>
+                                <td class="num">@N(m.NegociosPendientes)</td>
+                                <td class="num">@(m.Promedio is double pr ? $"{pr:0.0} ★" : "—")</td>
+                                <td>
+                                    <button type="button" class="vis-boton-texto" aria-expanded="@(seleccionado == id)"
+                                            @onclick="() => seleccionado = seleccionado == id ? null : id">
+                                        @(seleccionado == id ? "Ocultar" : "Ver reporte")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        @if (seleccionado is int idSel)
+        {
+            <section class="vis-bloque vis-reporte-anidado">
+                <div class="vis-reporte-anidado-cabecera">
+                    <h3 class="vis-subtitulo">Reporte de @(g.Municipios.FirstOrDefault(m => m.IdMunicipio == idSel)?.Nombre)</h3>
+                    <button type="button" class="vis-boton-texto" @onclick="() => seleccionado = null">Cerrar</button>
+                </div>
+                <ReporteMunicipal IdMunicipio="idSel" />
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private static readonly CultureInfo Es = CultureInfo.GetCultureInfo("es-CO");
+
+    private int dias = 30;
+    private bool cargando = true;
+    private string? error;
+    private ResumenGeneralDto? datos;
+    private int? seleccionado;
+    private CancellationTokenSource? cts;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CambiarPeriodo(int nuevo)
+    {
+        dias = nuevo;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cts?.Cancel();
+        cts = new CancellationTokenSource();
+        var token = cts.Token;
+
+        cargando = true;
+        error = null;
+        var (resultado, mensaje) = await Visibilidad.GeneralAsync(dias, token);
+        if (token.IsCancellationRequested) return;
+
+        cargando = false;
+        if (resultado is null) { error = mensaje; return; }
+        datos = resultado;
+    }
+
+    private static string N(int valor) => valor.ToString("N0", Es);
+
+    public void Dispose() => cts?.Cancel();
+}

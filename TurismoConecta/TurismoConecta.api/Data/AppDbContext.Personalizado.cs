@@ -6,15 +6,53 @@ namespace TurismoConecta.api.Data;
 /// <summary>
 /// Lo propio del modelo, fuera del AppDbContext generado
 /// (regla 3 de Database/README.md: lo propio va en partials):
-///   - tablas nuevas (AlertaMunicipal),
+///   - tablas nuevas (AlertaMunicipal, EventoVisibilidad),
 ///   - índices únicos creados por scripts (2026-11-10_002_limpieza_duplicados).
 /// </summary>
 public partial class AppDbContext
 {
     public virtual DbSet<AlertaMunicipal> AlertasMunicipales { get; set; }
 
+    public virtual DbSet<EventoVisibilidad> EventosVisibilidad { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        // Tabla del script 2026-11-10_003_evento_visibilidad (estadísticas y reportes)
+        modelBuilder.Entity<EventoVisibilidad>(entity =>
+        {
+            entity.HasKey(e => e.IdEventoVisibilidad);
+
+            entity.ToTable("EventoVisibilidad");
+
+            entity.HasIndex(e => new { e.IdNegocio, e.Fecha }, "IX_EventoVisibilidad_Negocio_Fecha");
+            entity.HasIndex(e => new { e.IdMunicipio, e.Fecha }, "IX_EventoVisibilidad_Municipio_Fecha");
+            entity.HasIndex(e => new { e.IdVisitante, e.Fecha }, "IX_EventoVisibilidad_Visitante_Fecha");
+
+            entity.Property(e => e.IdEventoVisibilidad).HasColumnName("idEventoVisibilidad");
+            entity.Property(e => e.Tipo).HasMaxLength(20).HasColumnName("tipo");
+            entity.Property(e => e.IdMunicipio).HasColumnName("idMunicipio");
+            entity.Property(e => e.IdNegocio).HasColumnName("idNegocio");
+            entity.Property(e => e.IdUsuario).HasColumnName("idUsuario");
+            entity.Property(e => e.IdVisitante).HasColumnName("idVisitante");
+            // Sin HasDefaultValueSql: el servicio siempre pone la fecha (así EF no hace un SELECT extra)
+            entity.Property(e => e.Fecha).HasPrecision(0).HasColumnName("fecha");
+
+            entity.HasOne(d => d.IdMunicipioNavigation).WithMany()
+                .HasForeignKey(d => d.IdMunicipio)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_EventoVisibilidad_Municipio");
+
+            entity.HasOne(d => d.IdNegocioNavigation).WithMany()
+                .HasForeignKey(d => d.IdNegocio)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_EventoVisibilidad_Negocio");
+
+            entity.HasOne(d => d.IdUsuarioNavigation).WithMany()
+                .HasForeignKey(d => d.IdUsuario)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_EventoVisibilidad_Usuario");
+        });
+
         // Índice único del script 2026-11-10_002 (el de MunicipioEtiqueta ya está en el
         // AppDbContext generado). EF necesita conocerlos para ordenar "borrar antes de insertar".
         modelBuilder.Entity<NegocioEtiqueta>()

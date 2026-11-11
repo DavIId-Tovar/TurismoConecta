@@ -1,0 +1,181 @@
+@* Reporte de un municipio (DashboardMunicipio y DashboardAdmin).
+   IdMunicipio null = el municipio asignado al administrador municipal. *@
+@using System.Globalization
+@implements IDisposable
+@inject VisibilidadApiService Visibilidad
+
+<div class="vis-panel">
+    <div class="vis-barra-filtros">
+        <SelectorPeriodo Dias="dias" DiasChanged="CambiarPeriodo" Deshabilitado="cargando" />
+
+        @if (datos is not null)
+        {
+            <button type="button" class="vis-boton" disabled="@descargando" @onclick="DescargarAsync">
+                <i class="ph @(descargando ? "ph-spinner" : "ph-download-simple")" aria-hidden="true"></i>
+                @(descargando ? "Generando…" : "Descargar CSV (Excel)")
+            </button>
+        }
+    </div>
+
+    @if (errorDescarga is not null)
+    {
+        <div class="vis-error"><i class="ph ph-warning-circle" aria-hidden="true"></i> @errorDescarga</div>
+    }
+
+    @if (cargando && datos is null)
+    {
+        <div class="vis-cargando"><span class="vis-spinner"></span> Preparando el reporte…</div>
+    }
+    else if (error is not null)
+    {
+        <div class="vis-error"><i class="ph ph-warning-circle" aria-hidden="true"></i> @error
+            <button type="button" class="vis-boton-texto" @onclick="CargarAsync">Reintentar</button>
+        </div>
+    }
+    else if (datos is not null)
+    {
+        var r = datos;
+        var p = r.Periodo;
+
+        <p class="vis-periodo-texto">
+            <strong>@r.NombreMunicipio</strong> · del @p.Desde.ToString("d 'de' MMMM", Es) al @p.Hasta.ToString("d 'de' MMMM 'de' yyyy", Es)
+            @if (cargando) { <span class="vis-spinner" aria-label="Actualizando"></span> }
+        </p>
+
+        <h3 class="vis-subtitulo">Interés de los turistas</h3>
+        <div class="vis-indicadores">
+            <IndicadorVisibilidad Titulo="Vistas de la ficha" Icono="ph-map-pin-area" Valor="@N(r.VistasFicha.Actual)" Metrica="r.VistasFicha" Dias="p.Dias"
+                                  Detalle="Visitas a la página del municipio" />
+            <IndicadorVisibilidad Titulo="Vistas de establecimientos" Icono="ph-storefront" Valor="@N(r.VistasNegocios.Actual)" Metrica="r.VistasNegocios" Dias="p.Dias" />
+            <IndicadorVisibilidad Titulo="Contactos a comercios" Icono="ph-hand-tap" Valor="@N(r.Contactos.Actual)" Metrica="r.Contactos" Dias="p.Dias"
+                                  Detalle="WhatsApp, llamadas y «Ver en Google Maps»" />
+            <IndicadorVisibilidad Titulo="Itinerarios nuevos" Icono="ph-path" Valor="@N(r.ItinerariosNuevos.Actual)" Metrica="r.ItinerariosNuevos" Dias="p.Dias"
+                                  Detalle="Viajes planeados que incluyen el municipio" />
+            <IndicadorVisibilidad Titulo="Favoritos nuevos" Icono="ph-heart" Valor="@N(r.FavoritosNuevos.Actual)" Metrica="r.FavoritosNuevos" Dias="p.Dias"
+                                  Detalle="Del municipio y sus establecimientos" />
+            <IndicadorVisibilidad Titulo="Reseñas nuevas" Icono="ph-star" Valor="@N(r.ResenasNuevas.Actual)" Metrica="r.ResenasNuevas" Dias="p.Dias"
+                                  Detalle="Del municipio y sus establecimientos" />
+        </div>
+
+        <div class="vis-dos-columnas">
+            <section class="vis-bloque">
+                <h3 class="vis-subtitulo">Vistas y contactos por día</h3>
+                <GraficaVisibilidad Serie="r.Serie" />
+            </section>
+
+            <section class="vis-bloque">
+                <h3 class="vis-subtitulo">Situación actual</h3>
+                <dl class="vis-situacion">
+                    <div><dt><i class="ph ph-suitcase-rolling" aria-hidden="true"></i> Viajeros en los próximos 30 días</dt><dd>@N(r.ViajerosProximos)</dd></div>
+                    <div><dt><i class="ph ph-star" aria-hidden="true"></i> Calificación del municipio</dt>
+                        <dd>@(r.PromedioMunicipio is double prom ? $"{prom:0.0} ★ ({r.ResenasMunicipioTotal})" : "Sin reseñas")</dd></div>
+                    <div><dt><i class="ph ph-seal-check" aria-hidden="true"></i> Establecimientos aprobados</dt><dd>@N(r.NegociosAprobados)</dd></div>
+                    <div class="@(r.NegociosPendientes > 0 ? "pendiente" : "")"><dt><i class="ph ph-hourglass" aria-hidden="true"></i> Pendientes de revisión</dt>
+                        <dd>@N(r.NegociosPendientes)</dd></div>
+                    <div><dt><i class="ph ph-x-circle" aria-hidden="true"></i> Rechazados</dt><dd>@N(r.NegociosRechazados)</dd></div>
+                    <div class="@(r.NegociosSinVistas > 0 ? "pendiente" : "")"><dt><i class="ph ph-eye-slash" aria-hidden="true"></i> Aprobados sin vistas en el periodo</dt>
+                        <dd>@N(r.NegociosSinVistas)</dd></div>
+                    <div><dt><i class="ph ph-warning" aria-hidden="true"></i> Alertas vigentes o próximas</dt><dd>@N(r.AlertasVigentes)</dd></div>
+                    <div class="@(r.ResenasRetenidas > 0 ? "pendiente" : "")"><dt><i class="ph ph-shield-warning" aria-hidden="true"></i> Reseñas retenidas por moderación</dt>
+                        <dd>@N(r.ResenasRetenidas)</dd></div>
+                </dl>
+            </section>
+        </div>
+
+        <section class="vis-bloque">
+            <h3 class="vis-subtitulo">Establecimientos aprobados, de más a menos vistos</h3>
+            @if (r.Negocios.Count == 0)
+            {
+                <p class="vis-nota"><i class="ph ph-info" aria-hidden="true"></i> El municipio aún no tiene establecimientos aprobados.</p>
+            }
+            else
+            {
+                <div class="vis-tabla-scroll alta">
+                    <table class="vis-tabla">
+                        <thead>
+                            <tr>
+                                <th>Establecimiento</th>
+                                <th>Categoría</th>
+                                <th class="num">Vistas</th>
+                                <th class="num">Contactos</th>
+                                <th class="num">Favoritos</th>
+                                <th class="num">Calificación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var n in r.Negocios)
+                            {
+                                <tr class="@(n.Vistas == 0 ? "sin-vistas" : "")">
+                                    <td>@n.Nombre</td>
+                                    <td>@n.Categoria</td>
+                                    <td class="num">@N(n.Vistas)</td>
+                                    <td class="num">@N(n.Contactos)</td>
+                                    <td class="num">@N(n.FavoritosTotal)</td>
+                                    <td class="num">@(n.Promedio is double pr ? $"{pr:0.0} ★ ({n.ResenasTotal})" : "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private static readonly CultureInfo Es = CultureInfo.GetCultureInfo("es-CO");
+
+    [Parameter] public int? IdMunicipio { get; set; }
+
+    private int dias = 30;
+    private bool cargando = true;
+    private bool descargando;
+    private string? error;
+    private string? errorDescarga;
+    private ReporteMunicipalDto? datos;
+    private CancellationTokenSource? cts;
+    private int? idCargado = -1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IdMunicipio == idCargado) return;
+        idCargado = IdMunicipio;
+        datos = null;
+        await CargarAsync();
+    }
+
+    private async Task CambiarPeriodo(int nuevo)
+    {
+        dias = nuevo;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cts?.Cancel();
+        cts = new CancellationTokenSource();
+        var token = cts.Token;
+
+        cargando = true;
+        error = null;
+        errorDescarga = null;
+        var (resultado, mensaje) = await Visibilidad.ReporteMunicipalAsync(IdMunicipio, dias, token);
+        if (token.IsCancellationRequested) return;
+
+        cargando = false;
+        if (resultado is null) { error = mensaje; return; }
+        datos = resultado;
+    }
+
+    private async Task DescargarAsync()
+    {
+        if (datos is null) return;
+        descargando = true;
+        errorDescarga = await Visibilidad.DescargarCsvAsync(datos.IdMunicipio, dias);
+        descargando = false;
+    }
+
+    private static string N(int valor) => valor.ToString("N0", Es);
+
+    public void Dispose() => cts?.Cancel();
+}

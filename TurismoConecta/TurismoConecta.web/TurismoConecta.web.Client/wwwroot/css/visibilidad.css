@@ -1,0 +1,347 @@
+/* ═══════════════════════════════════════════════════════════════
+   Estadísticas de visibilidad y reportes municipales
+   Lo usan PanelVisibilidadComercio, ReporteMunicipal, PanelVisibilidadGeneral,
+   GraficaVisibilidad, IndicadorVisibilidad y SelectorPeriodo.
+   Archivo global (no CSS aislado) porque lo comparten 6 componentes; todo
+   lleva el prefijo vis- para no chocar con nada.
+   Colores de la gráfica validados (daltonismo y contraste) contra fondo blanco.
+   ═══════════════════════════════════════════════════════════════ */
+
+.vis-panel {
+    --vis-vistas: #1A6FA8;
+    --vis-contactos: #C9733A;
+    --vis-texto: #1E2B25;
+    --vis-texto-2: #5A6961;
+    --vis-texto-3: #7d8a83;
+    --vis-borde: #E5E0D8;
+    --vis-rejilla: #EDE9E1;
+    --vis-fondo-suave: #FBF9F5;
+    --vis-bosque: #213B31;
+    --vis-sube: #2E7D4F;
+    --vis-baja: #A33A2B;
+    --vis-aviso: #9A6B00;
+
+    display: grid;
+    gap: 1rem;
+    color: var(--vis-texto);
+    font-size: 0.92rem;
+    min-width: 0;
+}
+
+/* ── Filtros ── */
+.vis-barra-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.vis-periodo {
+    display: inline-flex;
+    border: 1px solid var(--vis-borde, #E5E0D8);
+    border-radius: 999px;
+    padding: 3px;
+    background: #fff;
+}
+
+.vis-periodo button {
+    border: 0;
+    background: transparent;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--vis-texto-2, #5A6961);
+    cursor: pointer;
+}
+
+.vis-periodo button.activo { background: var(--vis-bosque, #213B31); color: #fff; }
+.vis-periodo button:disabled { cursor: progress; }
+.vis-periodo button:focus-visible { outline: 2px solid var(--vis-vistas, #1A6FA8); outline-offset: 2px; }
+
+.vis-selector-negocio {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--vis-texto-2);
+}
+
+.vis-selector-negocio select {
+    border: 1px solid var(--vis-borde);
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    font: inherit;
+    color: var(--vis-texto);
+    background: #fff;
+    max-width: 260px;
+}
+
+.vis-boton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--vis-bosque);
+    background: var(--vis-bosque);
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.45rem 0.9rem;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.vis-boton:disabled { opacity: 0.7; cursor: progress; }
+
+.vis-boton-texto {
+    border: 0;
+    background: none;
+    padding: 0.2rem 0.3rem;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--vis-vistas);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* ── Estados ── */
+.vis-periodo-texto { margin: 0; color: var(--vis-texto-2); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.vis-periodo-texto strong { color: var(--vis-texto); }
+
+.vis-cargando, .vis-error, .vis-nota {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--vis-borde);
+    background: var(--vis-fondo-suave);
+    color: var(--vis-texto-2);
+    margin: 0;
+}
+
+.vis-error { border-color: #EBC9C2; background: #FDF6F4; color: var(--vis-baja); }
+.vis-nota i, .vis-error i { font-size: 1.15rem; }
+
+.vis-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--vis-borde, #E5E0D8);
+    border-top-color: var(--vis-bosque, #213B31);
+    border-radius: 50%;
+    animation: vis-girar 0.8s linear infinite;
+}
+
+@keyframes vis-girar { to { transform: rotate(360deg); } }
+
+/* ── Indicadores ── */
+/* 6 indicadores = 3 + 3; el panel general usa 4 (.cuatro) */
+.vis-indicadores {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.vis-indicadores.cuatro { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+@media (max-width: 760px) {
+    .vis-indicadores, .vis-indicadores.cuatro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.vis-indicador {
+    border: 1px solid var(--vis-borde);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    background: #fff;
+    display: grid;
+    gap: 0.25rem;
+    align-content: start;
+}
+
+.vis-indicador-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--vis-texto-2);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.vis-indicador-cabecera i { font-size: 1rem; color: var(--vis-texto-3); }
+
+.vis-indicador-valor {
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--vis-texto);
+    font-variant-numeric: tabular-nums;
+}
+
+.vis-indicador-cambio { display: flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 600; }
+.vis-indicador-cambio.sube { color: var(--vis-sube); }
+.vis-indicador-cambio.baja { color: var(--vis-baja); }
+.vis-indicador-cambio.igual { color: var(--vis-texto-3); }
+.vis-indicador-detalle { font-size: 0.78rem; color: var(--vis-texto-2); line-height: 1.35; }
+
+/* ── Bloques ── */
+.vis-dos-columnas {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 900px) {
+    .vis-dos-columnas { grid-template-columns: minmax(0, 1fr); }
+}
+
+.vis-bloque {
+    border: 1px solid var(--vis-borde, #E5E0D8);
+    border-radius: 12px;
+    padding: 1rem;
+    background: #fff;
+    min-width: 0;
+}
+
+.vis-subtitulo {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--vis-texto, #1E2B25);
+}
+
+.vis-bloque .vis-subtitulo:not(:first-child) { margin-top: 1.25rem; }
+
+/* ── Gráfica ── */
+.vis-grafica { display: grid; gap: 0.5rem; }
+
+.vis-leyenda { display: flex; gap: 1rem; font-size: 0.78rem; color: var(--vis-texto-2); }
+.vis-leyenda span { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.vis-clave-barra {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--vis-vistas);
+}
+
+.vis-clave-linea {
+    display: inline-block;
+    width: 14px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--vis-contactos);
+}
+
+.vis-clave-linea.vis-clave-barra-tt { background: var(--vis-vistas); }
+
+.vis-lienzo { position: relative; }
+.vis-lienzo svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.vis-rejilla { stroke: var(--vis-rejilla); stroke-width: 1; }
+.vis-eje-texto { fill: var(--vis-texto-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.vis-barra { fill: var(--vis-vistas); }
+.vis-barra.activa { fill: #2C82BE; }
+.vis-linea { fill: none; stroke: var(--vis-contactos); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.vis-punto { fill: var(--vis-contactos); stroke: #fff; stroke-width: 2; }
+.vis-columna-activa { fill: rgba(30, 43, 37, 0.05); }
+.vis-zona { fill: transparent; cursor: crosshair; outline: none; }
+.vis-zona:focus-visible { stroke: var(--vis-vistas); stroke-width: 1.5; }
+
+.vis-tooltip {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    pointer-events: none;
+    background: #fff;
+    border: 1px solid var(--vis-borde);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(30, 43, 37, 0.12);
+    padding: 0.5rem 0.7rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+.vis-tooltip-fecha { color: var(--vis-texto-2); margin-bottom: 0.2rem; }
+.vis-tooltip-fecha::first-letter { text-transform: uppercase; }
+.vis-tooltip-fila { display: flex; align-items: center; gap: 0.4rem; color: var(--vis-texto-2); }
+.vis-tooltip-fila strong { color: var(--vis-texto); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+
+.vis-grafica-vacia {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    border: 1px dashed var(--vis-borde, #E5E0D8);
+    border-radius: 10px;
+    color: var(--vis-texto-2, #5A6961);
+}
+
+.vis-grafica-vacia i { font-size: 1.6rem; color: #9E5B3D; }
+.vis-grafica-vacia p { margin: 0; }
+
+/* ── Tablas ── */
+.vis-tabla-datos summary { cursor: pointer; font-size: 0.8rem; color: var(--vis-vistas); font-weight: 600; }
+.vis-tabla-datos[open] summary { margin-bottom: 0.5rem; }
+
+.vis-tabla-scroll { max-height: 260px; overflow: auto; border: 1px solid var(--vis-rejilla, #EDE9E1); border-radius: 8px; }
+.vis-tabla-scroll.alta { max-height: 420px; }
+
+.vis-tabla { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.vis-tabla th, .vis-tabla td { padding: 0.5rem 0.7rem; text-align: left; border-bottom: 1px solid var(--vis-rejilla, #EDE9E1); white-space: nowrap; }
+.vis-tabla th { position: sticky; top: 0; background: var(--vis-fondo-suave, #FBF9F5); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--vis-texto-2, #5A6961); }
+.vis-tabla .num { text-align: right; font-variant-numeric: tabular-nums; }
+.vis-tabla tr.sin-vistas td { color: var(--vis-texto-3, #7d8a83); }
+.vis-tabla tr.seleccionada td { background: #EEF5FA; }
+.vis-tabla tbody tr:last-child td { border-bottom: 0; }
+
+/* ── Canales de contacto ── */
+.vis-canales { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.vis-canales li { display: grid; grid-template-columns: minmax(120px, auto) 1fr 2.5rem; align-items: center; gap: 0.6rem; }
+.vis-canal-nombre { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--vis-texto-2); font-size: 0.84rem; }
+.vis-canal-pista { height: 8px; border-radius: 4px; background: var(--vis-rejilla); overflow: hidden; }
+.vis-canal-relleno { display: block; height: 100%; border-radius: 4px; background: var(--vis-contactos); }
+.vis-canal-valor { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Sugerencias ── */
+.vis-sugerencias { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.vis-sugerencias li { display: flex; gap: 0.55rem; align-items: flex-start; line-height: 1.45; color: var(--vis-texto-2); font-size: 0.85rem; }
+.vis-sugerencias i { color: var(--vis-bosque); font-size: 1.1rem; margin-top: 1px; }
+
+/* ── Situación actual (reporte municipal) ── */
+.vis-situacion { margin: 0; display: grid; gap: 0.15rem; }
+.vis-situacion > div { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.45rem 0; border-bottom: 1px solid var(--vis-rejilla); }
+.vis-situacion > div:last-child { border-bottom: 0; }
+.vis-situacion dt { font-weight: 500; color: var(--vis-texto-2); display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+.vis-situacion dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.vis-situacion > div.pendiente dd { color: var(--vis-aviso); }
+
+/* ── Reporte dentro del panel general ── */
+.vis-reporte-anidado { background: var(--vis-fondo-suave); }
+.vis-reporte-anidado-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.vis-reporte-anidado-cabecera .vis-subtitulo { margin: 0; }
+
+.vis-solo-lector {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+    .vis-indicador-valor { font-size: 1.5rem; }
+    .vis-canales li { grid-template-columns: 1fr 2.5rem; }
+    .vis-canal-pista { grid-column: 1 / -1; grid-row: 2; }
+}

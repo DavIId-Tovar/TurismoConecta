@@ -1,0 +1,242 @@
+@* Estadísticas de visibilidad de los establecimientos del comerciante (DashboardComercio). *@
+@using System.Globalization
+@implements IDisposable
+@inject VisibilidadApiService Visibilidad
+
+<div class="vis-panel">
+    <div class="vis-barra-filtros">
+        <SelectorPeriodo Dias="dias" DiasChanged="CambiarPeriodo" Deshabilitado="cargando" />
+
+        @if (datos is { Negocios.Count: > 1 })
+        {
+            <label class="vis-selector-negocio">
+                <span>Establecimiento</span>
+                <select @bind="idSeleccionado" @bind:after="StateHasChanged">
+                    <option value="0">Todos (@datos.Negocios.Count)</option>
+                    @foreach (var n in datos.Negocios)
+                    {
+                        <option value="@n.IdNegocio">@n.Nombre@(n.Estado == EstadosNegocio.Aprobado ? "" : $" ({n.Estado.ToLower()})")</option>
+                    }
+                </select>
+            </label>
+        }
+    </div>
+
+    @if (cargando && datos is null)
+    {
+        <div class="vis-cargando"><span class="vis-spinner"></span> Cargando estadísticas…</div>
+    }
+    else if (error is not null)
+    {
+        <div class="vis-error"><i class="ph ph-warning-circle" aria-hidden="true"></i> @error
+            <button type="button" class="vis-boton-texto" @onclick="CargarAsync">Reintentar</button>
+        </div>
+    }
+    else if (datos is null || datos.Negocios.Count == 0)
+    {
+        <div class="vis-grafica-vacia">
+            <i class="ph ph-storefront" aria-hidden="true"></i>
+            <p>Cuando registres un establecimiento y la alcaldía lo apruebe, aquí verás cuántos turistas lo ven y te contactan.</p>
+        </div>
+    }
+    else
+    {
+        var v = Vista;
+        var p = datos.Periodo;
+
+        <p class="vis-periodo-texto">
+            Del <strong>@p.Desde.ToString("d 'de' MMMM", Es)</strong> al <strong>@p.Hasta.ToString("d 'de' MMMM", Es)</strong>
+            @if (cargando) { <span class="vis-spinner" aria-label="Actualizando"></span> }
+        </p>
+
+        @if (NoVisibles.Any())
+        {
+            <div class="vis-nota">
+                <i class="ph ph-eye-slash" aria-hidden="true"></i>
+                <span>
+                    <strong>@(string.Join(", ", NoVisibles.Select(n => n.Nombre)))</strong>
+                    @(NoVisibles.Count() == 1 ? "no es visible" : "no son visibles") para el público (pendiente o rechazado por la alcaldía),
+                    así que no @(NoVisibles.Count() == 1 ? "suma" : "suman") vistas.
+                </span>
+            </div>
+        }
+
+        <div class="vis-indicadores">
+            <IndicadorVisibilidad Titulo="Vistas de la ficha" Icono="ph-eye" Valor="@N(v.Vistas.Actual)" Metrica="v.Vistas" Dias="p.Dias"
+                                  Detalle="Turistas que abrieron tu establecimiento" />
+            <IndicadorVisibilidad Titulo="Contactos" Icono="ph-hand-tap" Valor="@N(v.Contactos.Actual)" Metrica="v.Contactos" Dias="p.Dias"
+                                  Detalle="WhatsApp, llamada o «Ver en Google Maps»" />
+            <IndicadorVisibilidad Titulo="Tasa de contacto" Icono="ph-percent" Valor="@TasaContacto(v)"
+                                  Detalle="De cada 100 que te ven, cuántos te contactan" />
+            <IndicadorVisibilidad Titulo="Favoritos nuevos" Icono="ph-heart" Valor="@N(v.FavoritosNuevos.Actual)" Metrica="v.FavoritosNuevos" Dias="p.Dias"
+                                  Detalle="@($"{N(v.FavoritosTotal)} en total")" />
+            <IndicadorVisibilidad Titulo="Reseñas nuevas" Icono="ph-star" Valor="@N(v.ResenasNuevas.Actual)" Metrica="v.ResenasNuevas" Dias="p.Dias"
+                                  Detalle="@(v.Promedio is double prom ? $"Calificación {prom:0.0} ★ ({v.ResenasTotal} reseñas)" : "Aún sin calificación")" />
+            <IndicadorVisibilidad Titulo="Viajeros próximos" Icono="ph-suitcase-rolling" Valor="@N(v.ViajerosProximos)"
+                                  Detalle="@($"Itinerarios que pasan por {LugarViajeros} en los próximos 30 días")" />
+        </div>
+
+        <div class="vis-dos-columnas">
+            <section class="vis-bloque">
+                <h3 class="vis-subtitulo">Vistas y contactos por día</h3>
+                <GraficaVisibilidad Serie="v.Serie" />
+            </section>
+
+            <section class="vis-bloque">
+                <h3 class="vis-subtitulo">¿Cómo te contactan?</h3>
+                @{
+                    var canales = new (string Nombre, string Icono, int Valor)[]
+                    {
+                        ("WhatsApp", "ph-whatsapp-logo", v.WhatsApp.Actual),
+                        ("Llamada", "ph-phone", v.Telefono.Actual),
+                        ("Ver en Google Maps", "ph-map-trifold", v.ComoLlegar.Actual)
+                    };
+                    var maxCanal = Math.Max(1, canales.Max(c => c.Valor));
+                }
+                <ul class="vis-canales">
+                    @foreach (var c in canales)
+                    {
+                        <li>
+                            <span class="vis-canal-nombre"><i class="ph @c.Icono" aria-hidden="true"></i> @c.Nombre</span>
+                            <span class="vis-canal-pista"><span class="vis-canal-relleno" style="width:@((c.Valor * 100.0 / maxCanal).ToString("0.#", CultureInfo.InvariantCulture))%"></span></span>
+                            <strong class="vis-canal-valor">@c.Valor</strong>
+                        </li>
+                    }
+                </ul>
+
+                <h3 class="vis-subtitulo">Sugerencias</h3>
+                <ul class="vis-sugerencias">
+                    @foreach (var s in Sugerencias(v))
+                    {
+                        <li><i class="ph @s.Icono" aria-hidden="true"></i><span>@s.Texto</span></li>
+                    }
+                </ul>
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly CultureInfo Es = CultureInfo.GetCultureInfo("es-CO");
+
+    private int dias = 30;
+    private int idSeleccionado;
+    private bool cargando = true;
+    private string? error;
+    private ResumenComercioDto? datos;
+    private CancellationTokenSource? cts;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CambiarPeriodo(int nuevo)
+    {
+        dias = nuevo;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cts?.Cancel();
+        cts = new CancellationTokenSource();
+        var token = cts.Token;
+
+        cargando = true;
+        error = null;
+        var (resultado, mensaje) = await Visibilidad.MisNegociosAsync(dias, token);
+        if (token.IsCancellationRequested) return;
+
+        cargando = false;
+        if (resultado is null) { error = mensaje; return; }
+
+        datos = resultado;
+        if (idSeleccionado != 0 && datos.Negocios.All(n => n.IdNegocio != idSeleccionado)) idSeleccionado = 0;
+    }
+
+    private IEnumerable<VisibilidadNegocioDto> NoVisibles =>
+        Seleccionados.Where(n => n.Estado != EstadosNegocio.Aprobado);
+
+    private List<VisibilidadNegocioDto> Seleccionados =>
+        datos is null ? new()
+        : idSeleccionado == 0 ? datos.Negocios
+        : datos.Negocios.Where(n => n.IdNegocio == idSeleccionado).ToList();
+
+    private string LugarViajeros
+    {
+        get
+        {
+            var municipios = Seleccionados.Select(n => n.NombreMunicipio).Distinct().ToList();
+            return municipios.Count == 1 ? municipios[0] : "tus municipios";
+        }
+    }
+
+    /// <summary>El negocio elegido, o la suma de todos.</summary>
+    private VisibilidadNegocioDto Vista
+    {
+        get
+        {
+            var lista = Seleccionados;
+            if (lista.Count == 1) return lista[0];
+
+            MetricaDto Sumar(Func<VisibilidadNegocioDto, MetricaDto> m) =>
+                new() { Actual = lista.Sum(n => m(n).Actual), Anterior = lista.Sum(n => m(n).Anterior) };
+
+            var conResenas = lista.Where(n => n.Promedio.HasValue && n.ResenasTotal > 0).ToList();
+            var totalResenas = conResenas.Sum(n => n.ResenasTotal);
+
+            return new VisibilidadNegocioDto
+            {
+                Vistas = Sumar(n => n.Vistas),
+                WhatsApp = Sumar(n => n.WhatsApp),
+                Telefono = Sumar(n => n.Telefono),
+                ComoLlegar = Sumar(n => n.ComoLlegar),
+                Contactos = Sumar(n => n.Contactos),
+                FavoritosNuevos = Sumar(n => n.FavoritosNuevos),
+                FavoritosTotal = lista.Sum(n => n.FavoritosTotal),
+                ResenasNuevas = Sumar(n => n.ResenasNuevas),
+                ResenasTotal = lista.Sum(n => n.ResenasTotal),
+                // Promedio ponderado por número de reseñas
+                Promedio = totalResenas == 0 ? null : Math.Round(conResenas.Sum(n => n.Promedio!.Value * n.ResenasTotal) / totalResenas, 1),
+                // Un mismo municipio no se cuenta dos veces
+                ViajerosProximos = lista.GroupBy(n => n.NombreMunicipio).Sum(g => g.First().ViajerosProximos),
+                Serie = lista[0].Serie.Select((p, i) => new PuntoSerieDto
+                {
+                    Fecha = p.Fecha,
+                    Vistas = lista.Sum(n => n.Serie.Count > i ? n.Serie[i].Vistas : 0),
+                    Contactos = lista.Sum(n => n.Serie.Count > i ? n.Serie[i].Contactos : 0)
+                }).ToList()
+            };
+        }
+    }
+
+    private static string TasaContacto(VisibilidadNegocioDto v) =>
+        v.Vistas.Actual == 0 ? "—" : $"{Math.Min(100, v.Contactos.Actual * 100.0 / v.Vistas.Actual):0} %";
+
+    private List<(string Icono, string Texto)> Sugerencias(VisibilidadNegocioDto v)
+    {
+        var lista = new List<(string, string)>();
+
+        if (v.Vistas.Actual == 0)
+            lista.Add(("ph-megaphone", "Nadie ha abierto tu ficha en este periodo. Una buena foto de portada y una descripción clara hacen que te elijan en la ficha del municipio."));
+        else if (v.Contactos.Actual == 0)
+            lista.Add(("ph-phone-call", "Te ven pero no te contactan: revisa que el teléfono, el WhatsApp y el horario estén completos y al día."));
+        else if (v.Vistas.Anterior > 0 && v.Vistas.Actual < v.Vistas.Anterior)
+            lista.Add(("ph-trend-down", "Tus vistas bajaron frente al periodo anterior. Actualizar fotos y horario ayuda a recuperar visibilidad."));
+
+        if (v.Promedio is double p && p < 3.5)
+            lista.Add(("ph-chat-circle-text", $"Tu calificación es {p:0.0} ★. Responder las reseñas con amabilidad mejora la confianza de quienes te visitan."));
+        else if (v.ResenasTotal == 0)
+            lista.Add(("ph-star", "Aún no tienes reseñas. Invita a tus clientes a calificarte en TurismoConecta."));
+
+        if (v.ViajerosProximos > 0)
+            lista.Add(("ph-suitcase-rolling", $"{v.ViajerosProximos} {(v.ViajerosProximos == 1 ? "viajero tiene" : "viajeros tienen")} un itinerario por {LugarViajeros} en los próximos 30 días. Si cambias de horario o cierras, publica un aviso abajo."));
+
+        if (lista.Count == 0)
+            lista.Add(("ph-check-circle", "¡Vas muy bien! Mantén tu información al día para seguir así."));
+
+        return lista;
+    }
+
+    private static string N(int valor) => valor.ToString("N0", Es);
+
+    public void Dispose() => cts?.Cancel();
+}
